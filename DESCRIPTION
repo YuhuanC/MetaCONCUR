@@ -1,0 +1,46 @@
+Package: MetaCONCUR
+Title: Meta-Analysis Approach for Copy Number Profile Curve-Based Association Tests
+Version: 0.0.0.1
+Authors@R: 
+    c(
+      person("Yuhuan", "Cheng", role = "aut"),
+      person("Shannon T.", "Holloway", 
+       email = "shannon.t.holloway@gmail.com", 
+       role = c("aut", "cre")),
+      person("Jung-Ying", "Tzeng", role = "aut")
+    )
+Description: Implements a meta-analysis approach for CNV collapsing tests by 
+    extending the CONCUR method of Brucker et al. Includes two steps -
+    1. Worker step, which takes individual-level data input and generate portable 
+    summary statistics for each study; 2. Meta steps, which collects and aligns 
+    study-specific summary statistics, then performs meta-analysis to get p-value.
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Suggests: 
+    testthat (>= 3.0.0),
+    expm,
+    rlist,
+    withr
+Config/testthat/edition: 3
+Collate: 
+    'Align.R'
+    'Phi.R'
+    'Sum.R'
+    'Worker.R'
+    'Meta.R'
+    'data.R'
+    'helpful_tests.R'
+Imports:
+    CompQuadForm,
+    RSpectra,
+    bigalgebra,
+    bigmemory,
+    bigstatsr,
+    Matrix,
+    rlang,
+    methods
+Depends: 
+    R (>= 2.10)
+LazyData: true
