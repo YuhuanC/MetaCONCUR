@@ -57,11 +57,11 @@ more chromosomes specified in \code{chr} and contains:
 \item{grid}{A vector of the grid boundaries.}
 \item{SSA}{The score statistic for group A.}
 \item{SSB}{The score statistic for group B.}
-\item{HAHA}{An L x L matrix.}
-\item{HAHB}{An L x L matrix.}
-\item{HBHB}{An L x L matrix.}
-\item{HAX}{An L x p matrix of H_A x.}
-\item{HBX}{An L x p matrix of H_B x.}
+\item{HAHA}{An 2L x 2L matrix.}
+\item{HAHB}{An 2L x 2L matrix.}
+\item{HBHB}{An 2L x 2L matrix.}
+\item{HAX}{An 2L x p matrix of H_A x.}
+\item{HBX}{An 2L x p matrix of H_B x.}
 }
 }
 \description{

@@ -2,6 +2,7 @@
 
 export(CONCUR_worker)
 export(Meta)
+export(load_chr_stats)
 import(Matrix)
 import(RSpectra)
 import(bigstatsr)

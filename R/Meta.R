@@ -201,7 +201,7 @@
 #' @return A named numeric vector. Element "davies" contains the probability
 #'   as estimated by CompQuadForm::davies(); element "liu" contains the
 #'   probability as estimated by CompQuadForm::liu().
-#'
+#' @name Meta
 #' @include Sum.R Phi.R
 #' @examples
 #' # Examples for meta with two studies
@@ -302,17 +302,59 @@ Meta <- function(...) {
 #'   if FALSE, load full list from SS.rds.
 #'
 #' @return A list identical in structure to the output of Worker
-#' @keywords internal
-.load_chr_stats <- function(chr_name, save_dir, use.big.memory = FALSE) {
-  stopifnot(!is.null(save_dir))
+#' @describeIn Meta A convenient function to retrieve Worker result
+#' @export
+load_chr_stats <- function(chr_name, save_dir, use.big.memory = FALSE) {
+  stopifnot(
+    "`save_dir` must be provided" =
+      !is.null(save_dir),
+    "`chr_name` must be specified" =
+      !missing(chr_name)
+    )
   chr_dir <- file.path(save_dir, chr_name)
+
+  if (!dir.exists(chr_dir)) {
+    stop(paste0("Chromosome directory not found: ", chr_dir))
+  }
+
+  # get file directory dir function test if wo_FBM.rds exists, message
 
   fbm_names <- c("HAHA", "HAHB", "HBHB", "HAX", "HBX")
 
-  if (use.big.memory) {
+  # List all files in the directory
+  files_in_dir <- dir(chr_dir)
+
+  # Append .rds extension
+  fbm_files <- paste0(fbm_names, ".rds")
+
+  # Find which are present
+  found <- fbm_files[fbm_files %in% files_in_dir]
+  missing <- setdiff(fbm_files, found)
+
+  # if false, found FBMs > 0, message... sure about FBM false?
+  # if true, print messages, specific names of FBM files, wo_FBM..
+
+  if (isTRUE(use.big.memory)) {
     # Case 1: big.memory = TRUE
+
+    # check if SS small file exists
+    file_name <- "wo_FBM.rds"
+    if (file_name %in% files_in_dir) {
+      message("Found Small Statistics Bundle: ", file_name, " in ", chr_dir)
+    } else {
+      stop(paste0("Missing Small Statistics Bundle: ", file_name, " in ", chr_dir))
+    }
+
     # Load the small objects bundle
-    small_stats <- readRDS(file.path(chr_dir, "wo_FBM.rds"))
+    small_stats <- readRDS(file.path(chr_dir, file_name))
+
+    # check if FBMs exist
+    if (length(missing) > 0) {
+      stop(paste0("Missing FBM files in ", chr_dir, ":\n  - ",
+                  paste(missing, collapse = "\n  - ")))
+    }else{
+      message("Found FBM Files: ", paste(found, collapse = ", "))
+    }
 
     # Reattach FBMs from their .rds metadata
     fbm_stats <- lapply(fbm_names, function(nm) {
@@ -324,7 +366,20 @@ Meta <- function(...) {
 
   } else {
     # Case 2: big.memory = FALSE
-    stats <- readRDS(file.path(chr_dir, "SS.rds"))
+
+    # remind if they want to use big memory when FBMs exist
+    if(length(found) > 0){
+      message("FBM Files are present but will be ignored (use.big.memory = FALSE).")
+    }
+
+    # check if SS exist
+    file_name2 <- "SS.rds"
+    if (file_name2 %in% files_in_dir) {
+      message("Found Summary Statistics (Matrices Version): ", file_name2, " in ", chr_dir)
+    } else {
+      stop(paste0("Missing Summary Statistics (Matrices Version): ", file_name2, " in ", chr_dir))
+    }
+    stats <- readRDS(file.path(chr_dir, file_name2))
   }
 
   stats

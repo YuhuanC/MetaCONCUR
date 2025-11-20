@@ -324,7 +324,7 @@ test_that("Meta works",{
   expect_error(Meta(NULL))
 })
 
-test_that(".load_chr_stats works with in-memory mode", {
+test_that("load_chr_stats works with in-memory mode", {
   tmp <- withr::local_tempdir()
   chr_name <- "chr1"
   chr_dir <- file.path(tmp, chr_name)
@@ -346,7 +346,7 @@ test_that(".load_chr_stats works with in-memory mode", {
   .save_chr_stats(stats, chr_name, use.big.memory = FALSE, save_dir = tmp)
 
   # Reload
-  reloaded <- .load_chr_stats(chr_name, tmp, use.big.memory = FALSE)
+  reloaded <- load_chr_stats(chr_name, tmp, use.big.memory = FALSE)
 
   # Check structure and values
   expect_equal(names(reloaded), names(stats))
@@ -357,7 +357,7 @@ test_that(".load_chr_stats works with in-memory mode", {
 })
 
 
-test_that(".load_chr_stats works with big-memory mode", {
+test_that("load_chr_stats works with big-memory mode", {
   tmp <- withr::local_tempdir()
   chr_name <- "chr1"
   chr_dir <- file.path(tmp, chr_name)
@@ -386,7 +386,7 @@ test_that(".load_chr_stats works with big-memory mode", {
   .save_chr_stats(stats, chr_name, use.big.memory = TRUE, save_dir = tmp)
 
   # Reload
-  reloaded <- .load_chr_stats(chr_name, tmp, use.big.memory = TRUE)
+  reloaded <- load_chr_stats(chr_name, tmp, use.big.memory = TRUE)
 
   # Check structure
   expect_equal(names(reloaded), names(stats))

@@ -1,5 +1,5 @@
 Package: MetaCONCUR
-Title: Meta-Analysis Approach for Copy Number Profile Curve-Based Association Tests
+Title: Federated Meta-Analysis Approach for Copy Number Profile Curve-Based Association Tests
 Version: 0.0.0.1
 Authors@R: 
     c(
@@ -11,9 +11,10 @@ Authors@R:
     )
 Description: Implements a meta-analysis approach for CNV collapsing tests by 
     extending the CONCUR method of Brucker et al. Includes two steps -
-    1. Worker step, which takes individual-level data input and generate portable 
-    summary statistics for each study; 2. Meta steps, which collects and aligns 
-    study-specific summary statistics, then performs meta-analysis to get p-value.
+    1. Worker step, which takes individual-level data input and generates portable 
+    summary statistics for each study; 2. Meta step, which collects and aligns 
+    study-specific summary statistics, then performs meta-analysis to get p-values.
+    See the manuascript for more details.
 License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

@@ -649,8 +649,8 @@
 #'
 #' @return A list object containing `$grid` a vector of the grid boundaries;
 #'  `$SSA` the score statistic for group A; `$SSB` the score statistic for group
-#'  B; `$HAX` an Lxp matrix of H_A x; `$HBX` an Lxp matrix of H_B X;
-#'  `$HAHA` an LxL matrix; `$HAHB` an LxL matrix; and `$HBHB` an LxL matrix.
+#'  B; `$HAX` an 2Lxp matrix of H_A x; `$HBX` an 2Lxp matrix of H_B X;
+#'  `$HAHA` an 2Lx2L matrix; `$HAHB` an 2Lx2L matrix; and `$HBHB` an 2Lx2L matrix.
 #' @keywords internal
 .scoreProcedure <- function(cnvData, cutoff.dup, cutoff.del,
                             y, X, phenoType = c("bin", "cont"),
@@ -809,11 +809,11 @@
 #'     \item{grid}{A vector of the grid boundaries.}
 #'     \item{SSA}{The score statistic for group A.}
 #'     \item{SSB}{The score statistic for group B.}
-#'     \item{HAHA}{An L x L matrix.}
-#'     \item{HAHB}{An L x L matrix.}
-#'     \item{HBHB}{An L x L matrix.}
-#'     \item{HAX}{An L x p matrix of H_A x.}
-#'     \item{HBX}{An L x p matrix of H_B x.}
+#'     \item{HAHA}{An 2L x 2L matrix.}
+#'     \item{HAHB}{An 2L x 2L matrix.}
+#'     \item{HBHB}{An 2L x 2L matrix.}
+#'     \item{HAX}{An 2L x p matrix of H_A x.}
+#'     \item{HBX}{An 2L x p matrix of H_B x.}
 #'   }
 #' @export
 #' @examples

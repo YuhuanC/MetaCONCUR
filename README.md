@@ -1,0 +1,132 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# MetaCONCUR
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+An R package for CNV meta-analysis using summary statistics. Includes
+two steps: 1. Worker step, which takes individual-level data input and
+generate portable summary statistics for each study; 2. Meta steps,
+which collects and aligns study-specific summary statistics, then
+performs meta-analysis to get p-value.
+
+## Installation
+
+You can install the development version of MetaCONCUR like so:
+
+``` r
+# install.packages("devtools")
+    devtools::install_github("YuhuanC/MetaCONCUR")
+```
+
+## Examples
+
+This is a basic example which shows you how to run Worker step and
+obtain summary statistics for one study:
+
+``` r
+library(MetaCONCUR)
+# Load example data
+data(cnvData)
+data(phenoData)
+data(covData)
+# Run on example data, first 100 individuals
+s1_cnv <- cnvData[as.numeric(sub("P", "", cnvData$ID)) >= 1 &
+                  as.numeric(sub("P", "", cnvData$ID)) <= 100, ]
+s1_pheno <- phenoData[as.numeric(sub("P", "", phenoData$ID)) >= 1 &
+                      as.numeric(sub("P", "", phenoData$ID)) <= 100, ]
+s1_cov <- covData[as.numeric(sub("P", "", covData$ID)) >= 1 &
+                  as.numeric(sub("P", "", covData$ID)) <= 100, ]
+cutoff.dup <- 2.3
+cutoff.del <- 1.7
+formula_bin <- PHEB ~ SEX
+# Run Worker to get summary statistics for chromosome 1
+s1_SS <- CONCUR_worker(
+  cnvData = s1_cnv,
+  phenoData = s1_pheno,
+  cutoff.dup = cutoff.dup,
+  cutoff.del = cutoff.del,
+  formula = formula_bin,
+  covData = s1_cov,
+  phenoType = "bin",
+  chr = 1,
+  use.big.memory = FALSE,
+  save_dir = NULL
+ )
+#> No save_dir provided, summary statistics not saved for chr1
+# Output is a list of summary statistics
+names(s1_SS)
+#> [1] "chr1"
+names(s1_SS$chr1)
+#> [1] "grid" "SSA"  "SSB"  "HAHA" "HAHB" "HBHB" "HAX"  "HBX"
+```
+
+Another example which shows you how to run Meta step for multiple
+studies and get p-value of association tests:
+
+``` r
+library(MetaCONCUR)
+# Load example data
+data(cnvData)
+data(phenoData)
+data(covData)
+# Run on example data, first 100 individuals for study 1
+s1_cnv <- cnvData[as.numeric(sub("P", "", cnvData$ID)) >= 1 &
+                  as.numeric(sub("P", "", cnvData$ID)) <= 100, ]
+s1_pheno <- phenoData[as.numeric(sub("P", "", phenoData$ID)) >= 1 &
+                       as.numeric(sub("P", "", phenoData$ID)) <= 100, ]
+s1_cov <- covData[as.numeric(sub("P", "", covData$ID)) >= 1 &
+                  as.numeric(sub("P", "", covData$ID)) <= 100, ]
+# Run on example data, 101-200 individuals for study 2
+s2_cnv <- cnvData[as.numeric(sub("P", "", cnvData$ID)) >= 101 &
+                  as.numeric(sub("P", "", cnvData$ID)) <= 200, ]
+s2_pheno <- phenoData[as.numeric(sub("P", "", phenoData$ID)) >= 101 &
+                      as.numeric(sub("P", "", phenoData$ID)) <= 200, ]
+s2_cov <- covData[as.numeric(sub("P", "", covData$ID)) >= 101 &
+                  as.numeric(sub("P", "", covData$ID)) <= 200, ]
+cutoff.dup <- 2.3
+cutoff.del <- 1.7
+formula_bin <- PHEB ~ SEX
+# Getting summary statistics for study 1,2 chromosome 1
+s1_SS <- CONCUR_worker(
+  cnvData = s1_cnv,
+  phenoData = s1_pheno,
+  cutoff.dup = cutoff.dup,
+  cutoff.del = cutoff.del,
+  formula = formula_bin,
+  covData = s1_cov,
+  phenoType = "bin",
+  chr = 1,
+  use.big.memory = FALSE,
+  save_dir = NULL
+)
+#> No save_dir provided, summary statistics not saved for chr1
+s2_SS <- CONCUR_worker(
+  cnvData = s2_cnv,
+  phenoData = s2_pheno,
+  cutoff.dup = cutoff.dup,
+  cutoff.del = cutoff.del,
+  formula = formula_bin,
+  covData = s2_cov,
+  phenoType = "bin",
+  chr = 1,
+  use.big.memory = FALSE,
+  save_dir = NULL
+)
+#> No save_dir provided, summary statistics not saved for chr1
+# Running Meta with two studies' SS chr1, if SS not exists, load
+res_p <- Meta(s1_SS$chr1, s2_SS$chr1)
+
+print(res_p)
+#>    davies       liu 
+#> 0.7437512 0.7222249
+```
+
+Here’s another example to load the external study-specific summary
+statistics and perform meta-analysis using MetaCONCUR:
+
+``` r
+load_chr_stats(chr_name = "chr1", save_dir = tmp, use.big.memory = FALSE)
+```
