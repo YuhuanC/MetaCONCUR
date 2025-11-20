@@ -6,6 +6,9 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
+This package is under active development. A full manuscript and vignette
+will be released soon.
+
 An R package for CNV meta-analysis using summary statistics. Includes
 two steps: 1. Worker step, which takes individual-level data input and
 generate portable summary statistics for each study; 2. Meta steps,
