@@ -32,13 +32,10 @@
   store_zeros <- which(is.na(index) | {index == 0L} | {index > n_bin_study})
   index[store_zeros] <- NA
 
-  SSm_dup <- SS[index]
-  SSm_dup[is.na(SSm_dup)] <- 0.0
+  SSm <- SS[index]
+  SSm[is.na(SSm)] <- 0.0
 
-  SSm_del <- SS[index + n_bin_study]
-  SSm_del[is.na(SSm_del)] <- 0.0
-
-  c(SSm_dup, SSm_del)
+  SSm
 }
 
 # Switch for small matrix or big memory
@@ -86,24 +83,7 @@
   HHm1[store_zeros, ] <- Matrix(0, nrow = length(store_zeros), ncol = ncol(HHm1), sparse = TRUE)
   HHm1[, store_zeros] <- Matrix(0, nrow = nrow(HHm1), ncol = length(store_zeros), sparse = TRUE)
 
-  # Update dup by del
-  HHm2 <- as(study.HH[index, n_bin_study + index], "sparseMatrix")
-  HHm2[store_zeros, ] <- Matrix(0, nrow = length(store_zeros), ncol = ncol(HHm2), sparse = TRUE)
-  HHm2[, store_zeros] <- Matrix(0, nrow = nrow(HHm2), ncol = length(store_zeros), sparse = TRUE)
-
-  # Update del by dup
-  HHm3 <- as(study.HH[n_bin_study + index, index], "sparseMatrix")
-  HHm3[store_zeros, ] <- Matrix(0, nrow = length(store_zeros), ncol = ncol(HHm3), sparse = TRUE)
-  HHm3[, store_zeros] <- Matrix(0, nrow = nrow(HHm3), ncol = length(store_zeros), sparse = TRUE)
-
-  # Update del by del
-  HHm4 <- as(study.HH[index + n_bin_study, index + n_bin_study], "sparseMatrix")
-  HHm4[store_zeros, ] <- Matrix(0, nrow = length(store_zeros), ncol = ncol(HHm4), sparse = TRUE)
-  HHm4[, store_zeros] <- Matrix(0, nrow = nrow(HHm4), ncol = length(store_zeros), sparse = TRUE)
-
-  as(rbind(cbind(HHm1, HHm2),
-           cbind(HHm3, HHm4)), "sparseMatrix")
-
+  as(HHm1, "sparseMatrix")
 }
 
 #' Shift Study HH Matrix to Meta Grid
@@ -134,46 +114,34 @@
 
   # taking care of zeros and out-of-boundary index
   store_zeros <- which(is.na(index) | {index == 0L} | {index > n_bin_study})
-  store_zeros_long <- c(store_zeros, store_zeros + n_bin_meta)
   index[store_zeros] <- 1L
 
   # print(paste0("Start creating matrix with dimension ", 2L*n_bin_meta, " by ", 2L*n_bin_meta))
 
-  HHc <- bigstatsr::FBM(nrow = 2L * n_bin_meta,
-                        ncol = 2L * n_bin_meta,
+  HHc <- bigstatsr::FBM(nrow = n_bin_meta,
+                        ncol = n_bin_meta,
                         type = "double",
                         init = 0.0)
 
-  #print("Matrix created")
-  #gc()
-
-  tmp <- bigstatsr::big_apply(
-    X = HHc,
-    a.FUN = function(X, ind, index, hh, hhc, store_zeros_long, n_bin_study, n_bin_meta) {
-      # this fills the left side of the matrix
-      if (any(ind <= n_bin_meta))
-        hhc[, ind[ind <= n_bin_meta]] <- hh[c(index, index + n_bin_study), index[ind[ind <= n_bin_meta]]]
-
-      # this fills the right side of the matrix
-      if (any(ind > n_bin_meta))
-        hhc[, ind[ind > n_bin_meta]] <- hh[c(index, index + n_bin_study),
-                                           c(index, index + n_bin_study)[ind[ind > n_bin_meta]]]
-
-      hhc[store_zeros_long, ind] <- 0.0
-      if (any(ind %in% store_zeros_long))
-        hhc[, ind[ind %in% store_zeros_long]] <- 0.0
-      NULL
-    },
-    a.combine = 'c',
-    block.size = 100,
-    index = index,
-    hh = study.HH,
-    hhc = HHc,
-    store_zeros_long = store_zeros_long,
-    n_bin_study = n_bin_study,
-    n_bin_meta = n_bin_meta
-  )
-  #gc()
+  for (j0 in seq.int(1L, n_bin_meta, by = 100L)) {
+    j1 <- min(j0 + 100L - 1L, n_bin_meta)
+    cols_meta <- j0:j1
+    cols_study <- index[cols_meta]
+    
+    # pull submatrix into RAM
+    block <- study.HH[index, cols_study]
+    
+    # zero invalid rows
+    if (length(store_zeros) > 0L) {
+      block[store_zeros, ] <- 0.0
+      
+      bad_cols <- which(cols_meta %in% store_zeros)
+      if (length(bad_cols) > 0L)
+        block[, bad_cols] <- 0.0
+    }
+    
+    HHc[, cols_meta] <- block
+  }
 
   HHc
 
@@ -219,9 +187,9 @@
   store_zeros <- which(is.na(index) | {index == 0L} | {index > n_bin_study})
   index[store_zeros] <- 1L
 
-  HXc <- as(study.HX[c(index, index + n_bin_study), ], "sparseMatrix")
-  HXc[c(store_zeros, store_zeros + n_bin_meta), ] <-
-    Matrix(0, nrow = length(c(store_zeros, store_zeros + n_bin_meta)),
+  HXc <- as(study.HX[c(index), ], "sparseMatrix")
+  HXc[c(store_zeros), ] <-
+    Matrix(0, nrow = length(c(store_zeros)),
            ncol = ncol(HXc), sparse = TRUE)
   HXc
 }
@@ -255,26 +223,28 @@
 
   # Taking care of zeros and out-of-boundary index
   store_zeros <- which(is.na(index) | {index == 0L} | {index > n_bin_study})
-  store_zeros_long <- c(store_zeros, store_zeros + n_bin_meta)
   index[store_zeros] <- 1L
 
-  HXc <- bigstatsr::FBM(nrow = 2L*n_bin_meta, ncol = ncol(study.HX),
+  HXc <- bigstatsr::FBM(nrow = n_bin_meta, ncol = ncol(study.HX),
                         type = "double", init = 0.0)
 
-  tmp <- bigstatsr::big_apply(
-    X = study.HX,
-    a.FUN = function(X, ind, index, store_zeros_long, HXc) {
-      HXc[, ind] <- X[c(index, index + n_bin_study), ind]
-      HXc[store_zeros_long, ind] <- 0.0
-      NULL
-    },
-    a.combine = 'c',
-    block.size = 100,
-    index = index,
-    store_zeros_long = store_zeros_long,
-    HXc = HXc
-  )
-
+  for (j0 in seq.int(1L, n_bin_meta, by = 100L)) {
+    j1 <- min(j0 + 100L - 1L, n_bin_meta)
+    rows_meta <- j0:j1
+    rows_study <- index[rows_meta]
+    
+    # pull submatrix into RAM
+    block <- study.HX[rows_study, ]
+    
+    # zero invalid rows
+    bad <- which(rows_meta %in% store_zeros)
+    if (length(bad) > 0L) {
+      block[bad, ] <- 0.0
+    }
+    
+    HXc[rows_meta, ] <- block
+  }
+  
   HXc
 }
 
@@ -316,22 +286,18 @@
   result[["HAHA"]] <-.dotHH(study.data$HAHA, study_grid, meta.grid)
 
   if (inherits (study.data$HAHA, "FBM")){
-    #print(is(result[["HAHA"]]))
-    #print(slotNames(result[["HAHA"]]))
     file.remove(study.data$HAHA$backingfile)
   }
 
   result[["HAHB"]] <-.dotHH(study.data$HAHB, study_grid, meta.grid)
 
   if (inherits (study.data$HAHB, "FBM")){
-
     file.remove(study.data$HAHB$backingfile)
   }
 
   result[["HBHB"]] <-.dotHH(study.data$HBHB, study_grid, meta.grid)
 
   if (inherits (study.data$HBHB, "FBM")){
-
     file.remove(study.data$HBHB$backingfile)
   }
 

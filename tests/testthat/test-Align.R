@@ -1,15 +1,23 @@
 test_that(".dotMatch works", {
-  SS <- c(1,0,0,2)
-  grid.study <- c(150,200,300)
-  grid.meta <- c(100,150,200,250,300,350)
-  expected <- c(0,1,0,0,0,0,0,2,2,0)
+  SS <- c(1, 0)
+  grid.study <- c(150, 200, 300)
+  grid.meta <- c(100, 150, 200, 250, 300, 350)
+  
+  expected <- c(0,1,0,0,0)
 
-  result <- .dotMatch(SS,grid.study,grid.meta)
-
-#  expect_length(result, 2*(length(grid.meta)-1))
+  result <- .dotMatch(SS, grid.study, grid.meta)
 
   expect_equal(result, expected)
+  SS <- c(0, 2)
+  grid.study <- c(150, 200, 300)
+  grid.meta <- c(100, 150, 200, 250, 300, 350)
+  
+  expected <- c(0,0,2,2,0)
+  
+  result <- .dotMatch(SS, grid.study, grid.meta)
 
+  expect_equal(result, expected)
+  
   expect_error(.dotMatch(SS = NULL, grid.study = grid.study, grid.meta = grid.meta),
                "`SS` must be a numeric vector")
 
@@ -26,10 +34,7 @@ test_that(".dotMatch works", {
 test_that(".dotHH.Matrix works",{
   library(Matrix)
 
-  study.HH <- rbind(cbind(Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
-                          Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                    cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                          Matrix(c(0,0,0,2),nrow = 2,ncol = 2)))
+  study.HH <- Matrix(c(1,0,0,0),nrow = 2,ncol = 2)
 
   grid.study <- c(150,200,300)
   grid.meta <- c(100,150,200,250,300,350)
@@ -37,13 +42,33 @@ test_that(".dotHH.Matrix works",{
   expected <- matrix(0, nrow = 10, ncol = 10)
   expected[2,2]<-1
   expected[8:9,8:9] <- matrix(rep(2,4),nrow = 2,ncol = 2)
-  #expected <- as(expected, "sparseMatrix")
 
   #Convert a sparse Matrix to a matrix
   result <- as.matrix(.dotHH.Matrix(study.HH,grid.study,grid.meta))
 
-  expect_equal(result, expected)
-
+  expect_equal(result, expected[1:5,1:5])
+  
+  study.HH <- Matrix(rep(0,4),nrow = 2,ncol = 2)
+  
+  #Convert a sparse Matrix to a matrix
+  result <- as.matrix(.dotHH.Matrix(study.HH,grid.study,grid.meta))
+  
+  expect_equal(result, expected[1:5, 6:10])
+  
+  study.HH <- Matrix(rep(0,4),nrow = 2,ncol = 2)
+  
+  #Convert a sparse Matrix to a matrix
+  result <- as.matrix(.dotHH.Matrix(study.HH,grid.study,grid.meta))
+  
+  expect_equal(result, expected[6:10, 1:5])
+  
+  study.HH <- Matrix(c(0,0,0,2),nrow = 2,ncol = 2)
+  
+  #Convert a sparse Matrix to a matrix
+  result <- as.matrix(.dotHH.Matrix(study.HH,grid.study,grid.meta))
+  
+  expect_equal(result, expected[6:10, 6:10])
+  
   expect_error(.dotHH.Matrix(study.HH, NULL, grid.meta),
                "`grid.study` must be a numeric vector")
   expect_error(.dotHH.Matrix(study.HH, grid.study, NULL),
@@ -119,10 +144,12 @@ test_that(".dotHX.Matrix works",{
   expected[2,1] <- 1
   expected[8:9,] <- Matrix(rep(1,4),nrow = 2,ncol = 2)
 
-  result <- as(.dotHX.Matrix(study.HX,grid.study,grid.meta),"Matrix")
+  result <- as(.dotHX.Matrix(study.HX[1:2, ], grid.study, grid.meta), "Matrix")
+  expect_equal(result, expected[1:5,])
 
-  expect_equal(result, expected)
-
+  result <- as(.dotHX.Matrix(study.HX[3:4, ], grid.study, grid.meta), "Matrix")
+  expect_equal(result, expected[6:10,])
+  
   expect_error(.dotHX.Matrix(study.HX, NULL, grid.meta),
                "`grid.study` must be a numeric vector")
   expect_error(.dotHX.Matrix(study.HX, grid.study, NULL),

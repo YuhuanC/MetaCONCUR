@@ -1,60 +1,5 @@
 # Worker functions
 
-#' Identify the records reflecting duplicates
-#'
-#' @noRd
-#'
-#' @param cnvData A data.frame object. Must contain at least column `TYPE`
-#'   providing the copy number. All other columns are ignored.
-#' @param cutoff A numeric object. Duplication is assumed if `TYPE is at or
-#'   above the provided value.
-#'
-#' @return A logical vector indicating which records are duplications.
-#'
-#' @keywords internal
-.idDuplicates <- function(cnvData, cutoff) {
-  stopifnot(
-    "`cnvData` must be a data.frame" =
-      !missing(cnvData) && is.data.frame(cnvData),
-    "`cnvData` must contain column `TYPE`" = "TYPE" %in% colnames(cnvData),
-    "`cutoff` must be numeric" = !missing(cutoff) && is.numeric(cutoff))
-
-  result <- cnvData$TYPE > {cutoff - 1e-8}
-  if (all(result) || !any(result)) {
-    warning(ifelse(all(result), "all ", "no "), "records code as duplication",
-            call. = FALSE)
-  }
-  result
-}
-
-#' Identify the records reflecting deletions
-#'
-#' @noRd
-#'
-#' @param cnvData A data.frame object. Must contain at least column `TYPE`
-#'   providing the copy number. All other columns are ignored.
-#' @param cutoff A numeric object. Deletions is assumed if `TYPE is at or
-#'   below the provided value.
-#'
-#' @return A logical vector indicating which records are deletions.
-#'
-#' @keywords internal
-.idDeletions <- function(cnvData, cutoff) {
-  stopifnot(
-    "`cnvData` must be a data.frame"  =
-      !missing(cnvData) && is.data.frame(cnvData),
-    "`cnvData` must contain column `TYPE`" = "TYPE" %in% colnames(cnvData),
-    "`cutoff` must be numeric" = !missing(cutoff) && is.numeric(cutoff))
-
-  result <- cnvData$TYPE < {cutoff + 1e-8}
-  if (all(result) || !any(result)) {
-    warning(ifelse(all(result), "all ", "no "), "records code as deletion",
-            call. = FALSE)
-  }
-  result
-}
-
-
 #' Identify the Coarsened Grid Boundaries
 #'
 #' Given start and end locations, identify the boundary values of the coarsened
@@ -69,11 +14,12 @@
 #'
 #' @keywords internal
 .defineGrid <- function(cnvData) {
-
+  
   stopifnot(
-    "`cnvData` must be a data.frame" = !missing(cnvData) && .isCNV(cnvData)
-  )
-
+    "`cnvData` is not properly specified" = !missing(cnvData) && 
+      inherits(cnvData, "cnvData")
+    )
+  
   # grid is defined by the start/end points
   c(cnvData$BP1, cnvData$BP2) |> unique() |> sort()
 }
@@ -95,10 +41,12 @@
 #'   (upper) contains the index of the unit of the coarsened grid with upper
 #'   boundary equal to the BP2 of the record.
 #'
+#' @include helpful_tests.R
 #' @keywords internal
 .matchGrid <- function(cnvData, grid) {
   stopifnot(
-    "`cnvData` must be a data.frame" = !missing(cnvData) && .isCNV(cnvData),
+    "`cnvData` is not properly specified" = !missing(cnvData) && 
+      inherits(cnvData, "cnvData"),
     "`grid` must be a numeric vector" =
       !missing(grid) && .isNumericVector(grid) && length(grid) > 1L)
 
@@ -142,15 +90,16 @@
   covData <- covData[id_order, ]
   phenoData <- phenoData[id_order, ]
 
-  model <- tryCatch(switch(phenoType,
-                           "cont" = stats::lm(formula, cbind(covData, phenoData)),
-                           "bin" = stats::glm(formula, cbind(covData, phenoData),
-                                              family = "binomial")),
-                    error = function(e) {
-                      stop("unable to fit phenotype\n\t", e$message,
-                           call. = FALSE)
-                    })
-
+  model <- tryCatch(
+    switch(phenoType,
+           "cont" = stats::lm(formula, cbind(covData, phenoData)),
+           "bin" = stats::glm(formula, cbind(covData, phenoData),
+                              family = "binomial")),
+    error = function(e) {
+      stop("unable to fit phenotype\n\t", e$message,
+           call. = FALSE)
+    })
+  
   res <- stats::residuals(model, type = "response")
   if (length(res) != nrow(covData)) {
     stop("a residual was not returned for all records", call. = FALSE)
@@ -179,6 +128,7 @@
 #' @return A vector. The score statistic on each grid unit. If a grid unit does
 #'   note contain data, it will be zero.
 #'
+#' @include helpful_tests.R
 #' @keywords internal
 .computeSS <- function(Y, grid.ind, test.func, cutoff, px,
                        phenoType = c("bin", "cont")) {
@@ -197,7 +147,7 @@
     "`cutoff` must be a scalar" = !missing(cutoff) && .isNumericVector(cutoff, 1L),
     "IDs of `grid.ind` must be in IDs of `Y`" = all(grid.ind$ID %in% Y$ID))
 
-  # calculate the indicator
+  # calculate the indicator - note that this is now a logical
   H <- do.call(test.func, list(grid.ind$TYPE, cutoff))
 
   ### Getting unbiased estimator of residual variance
@@ -213,14 +163,16 @@
   ids <- match(grid.ind$ID, Y$ID)
   Y_local <- Y$Residuals[ids]
 
-  SS <- numeric(max(grid.ind$upper))
+  SS <- numeric(max(grid.ind$upper) + 1L)
   for (i in seq_len(nrow(grid.ind))) {
-    if (H[i] == 1L) {
-      inds <- grid.ind$lower[i]:grid.ind$upper[i]
-      SS[inds] <- SS[inds] +  Y_local[i] / phi
+    if (H[i]) {
+      val <- Y_local[i] / phi
+      SS[grid.ind$lower[i]] <- SS[grid.ind$lower[i]] + val
+      SS[grid.ind$upper[i] + 1L] <- SS[grid.ind$upper[i] + 1L] - val
     }
   }
-  SS
+  SS <- cumsum(SS)
+  head(SS, -1L)
 }
 
 #' Calculate (X^T V^{-1} X)^{-1/2} Using Eigen Decomposition
@@ -230,7 +182,9 @@
 #' @param phi.hat A numeric vector. The variance.
 #'
 #' @return A matrix. (X^T V^{-1} X)^{-1/2}
+#' 
 #' @importFrom stats model.matrix update.formula
+#' @include helpful_tests.R
 #' @keywords internal
 .computeXTXinvsqrt <- function(X, phi.hat) {
 
@@ -241,36 +195,23 @@
   )
 
   # calculate (X^T X)^{-1/2} using eigen decomposition
-  xtvx_eigen <- tryCatch(eigen(crossprod(X, X / phi.hat), symmetric = TRUE),
-                         error = function(e) {
-                           stop("Unable to invert X^T V^{-1} X\n",
-                                e$message, call. = FALSE)
-                         })
+  Xw <- X / sqrt(phi.hat)
+  A  <- crossprod(Xw)
+  xtvx_eigen <- eigen(A, symmetric = TRUE)
+  
+  Q <- xtvx_eigen$vectors
+  d <- xtvx_eigen$values
+  
   if (any(xtvx_eigen$values < 1e-16)) {
-
-    d <- xtvx_eigen$values
-    d <- {d + abs(d)} /2
+    d <- {d + abs(d)} / 2.0
     d2 <- 1.0 / sqrt(d)
     d2[abs(d) < 1e-16] <- 0.0
-
-    xtx_inv_sqrt <- tryCatch(t(t(xtvx_eigen$vectors) * d2) %*%
-                               solve(xtvx_eigen$vectors),
-                             error = function(e) {
-                               stop("Unable to calculate (X^T V^{-1} X)^{-1/2}\n",
-                                    e$message, call. = FALSE)
-                             })
   } else {
-    # there should never be an error here, but JIC
-    # p x p
-    xtx_inv_sqrt <- tryCatch(t(t(xtvx_eigen$vectors) / sqrt(xtvx_eigen$values)) %*%
-                               solve(xtvx_eigen$vectors),
-                             error = function(e) {
-                               stop("Unable to calculate (X^T V^{-1} X)^{-1/2}\n",
-                                    e$message, call. = FALSE)
-                             })
+    d2 <- 1.0 / sqrt(d)
   }
 
-  xtx_inv_sqrt
+  Qscaled <- sweep(Q, 2L, d2, `*`)
+  tcrossprod(Qscaled, Q)
 }
 
 #' Compute Covariance Components on Coarsened Grid
@@ -309,10 +250,10 @@
     "`grid.ind` must be a data.frame" = !missing(grid.ind) &&
       is.data.frame(grid.ind) &&
       all(c("ID", "TYPE", "lower", "upper") %in% colnames(grid.ind)),
-    "`HA` must be an integer vector" = !missing(HA) &&
-      .isIntegerVector(HA, 2L * nrow(grid.ind)),
-    "`HB` must be a integer vector" = !missing(HB) &&
-      .isIntegerVector(HB, 2L * nrow(grid.ind))
+    "`HA` must be a logical vector" = !missing(HA) &&
+      .isLogicalVector(HA, nrow(grid.ind)),
+    "`HB` must be a logical vector" = !missing(HB) &&
+      .isLogicalVector(HB, nrow(grid.ind))
   )
 
   ids <- y$ID
@@ -322,72 +263,72 @@
   # number of bins in coarse grid
   L <- max(grid.ind$upper)
 
-  L2 <- 2L * L
   p <- ncol(X)
 
   # initialize covariance components matrices
-  HAX <- Matrix::Matrix(0.0, nrow = L2, ncol = p, sparse = TRUE)
-  HBX <- Matrix::Matrix(0.0, nrow = L2, ncol = p, sparse = TRUE)
-  HAHA <- Matrix::Matrix(0.0, nrow = L2, ncol = L2, sparse = TRUE)
-  HAHB <- Matrix::Matrix(0.0, nrow = L2, ncol = L2, sparse = TRUE)
-  HBHB <- Matrix::Matrix(0.0, nrow = L2, ncol = L2, sparse = TRUE)
+  HAX <- Matrix::Matrix(0.0, nrow = L, ncol = p, sparse = TRUE)
+  HBX <- Matrix::Matrix(0.0, nrow = L, ncol = p, sparse = TRUE)
+  HAHA <- Matrix::Matrix(0.0, nrow = L, ncol = L, sparse = TRUE)
+  HAHB <- Matrix::Matrix(0.0, nrow = L, ncol = L, sparse = TRUE)
+  HBHB <- Matrix::Matrix(0.0, nrow = L, ncol = L, sparse = TRUE)
 
   # unique ID in the event data
   unique_ids <- unique(grid.ind$ID)
-  grid.ind <- rbind(grid.ind,
-                    data.frame("ID" = grid.ind$ID,
-                               "TYPE" = grid.ind$TYPE,
-                               "lower" = grid.ind$lower + L,
-                               "upper" = grid.ind$upper + L))
+
+  # group the row indices of grid.ind that pertain to each ID
+  rows_by_id <- split(seq_len(nrow(grid.ind)), grid.ind$ID)
 
   for (i in unique_ids) {
 
     # identify which rows of grid.ind pertain to the case under consideration
     # further limit to only those with H = 1
-    cases_A <- grid.ind$ID == i & HA == 1L
-    cases_B <- grid.ind$ID == i & HB == 1L
-
-    if (any(cases_A)) {
+    rows <- rows_by_id[[i]]
+    cases_A <- rows[HA[rows]]
+    cases_B <- rows[HB[rows]]
+    
+    if (length(cases_A) + length(cases_B) > 0L) {
+      use <- match(i, ids)
+      if (is.na(use)) next
+      v <- 1.0 / phi.hat[use]
+      Xvec <- X[use, ]
+    } else {
+      next
+    }
+    
+    if (length(cases_A) > 0L) {
       # get all grid units spanned by the events of this case
-      idx <- sapply(which(cases_A),
-                    function(j) {grid.ind$lower[j]:grid.ind$upper[j]}) |>
-        unlist() |> c()
+      idx <- unlist(Map(seq, grid.ind$lower[cases_A], grid.ind$upper[cases_A]), 
+                    use.names = FALSE)
+      uA <- Matrix::sparseVector(x = 1.0, i = idx, length = L)
+      
+      HAHA <- HAHA + v * tcrossprod(uA)
 
-      use <- ids == i
-      Xmat <- matrix(X[use, ]/ phi.hat[use], nrow = length(idx), ncol = p, byrow = TRUE)
+      HAX <- HAX + tcrossprod(uA, Xvec * v)
 
-      # update H^T H and H^T X
-      HAHA[idx, idx] <- HAHA[idx, idx] + 1.0 / phi.hat[use]
-      HAX[idx, ] <- HAX[idx, ] +  Xmat
+      if (length(cases_B) > 0L) {
+        idxB <- unlist(Map(seq, grid.ind$lower[cases_B], grid.ind$upper[cases_B]), 
+                       use.names = FALSE)
+        uB <- Matrix::sparseVector(x = 1.0, i = as.numeric(idxB), length = L)
 
-      if (any(cases_B)) {
-        idxB <- sapply(which(cases_B),
-                       function(j) {grid.ind$lower[j]:grid.ind$upper[j]}) |>
-          unlist() |> c()
-
-        Xmat <- matrix(X[use, ]/ phi.hat[use], nrow = length(idxB), ncol = p, byrow = TRUE)
-
-        HAHB[idx, idxB] <- HAHB[idx, idxB] + 1.0 / phi.hat[use]
-        HBHB[idxB, idxB] <- HBHB[idxB, idxB] + 1.0 / phi.hat[use]
-        HBX[idxB, ] <- HBX[idxB, ] + Xmat
+        HAHB <- HAHB + v * tcrossprod(uA, uB)
+        HBHB <- HBHB + v * tcrossprod(uB)
+        HBX <- HBX + tcrossprod(uB, Xvec * v)
       }
 
-    } else if (any(cases_B)) {
+    } else if (length(cases_B) > 0L) {
       # get all grid units spanned by the events of this case
-      idx <- sapply(which(cases_B),
-                    function(j) {grid.ind$lower[j]:grid.ind$upper[j]}) |>
-        unlist() |> c()
-      use <- ids == i
-      Xmat <- matrix(X[use, ]/ phi.hat[use], nrow = length(idx), ncol = p, byrow = TRUE)
-      # update H^T H and H^T X
-      HBHB[idx, idx] <- HBHB[idx, idx] + 1.0 / phi.hat[use]
-      HBX[, idx] <- HBX[, idx] +  Xmat
+      idx <- unlist(Map(seq, grid.ind$lower[cases_B], grid.ind$upper[cases_B]), 
+                    use.names = FALSE)
+      uB <- Matrix::sparseVector(x = 1.0, i = idx, length = L)
+
+      HBHB <- HBHB + v * tcrossprod(uB)
+      HBX <- HBX + tcrossprod(uB, Xvec)
     }
   }
 
 
-  HAHA <- as(HAHA, "symmetricMatrix")
-  HBHB <- as(HBHB, "symmetricMatrix")
+  HAHA <- Matrix::forceSymmetric(HAHA, uplo = "U")
+  HBHB <- Matrix::forceSymmetric(HBHB, uplo = "U")
   HAX2 <- HAX %*% xtx_inv_sqrt
   rm(HAX)
   HBX2 <- HBX %*% xtx_inv_sqrt
@@ -411,8 +352,8 @@
 #' @param phi.hat A numeric vector. The variance.
 #' @param grid.ind A data.frame object. Contains the ID, TYPE, and the indices
 #'   of the lower and upper grid units of each event record.
-#' @param HA A numeric vector. The indicator functions.
-#' @param HB A numeric vector. The indicator functions.
+#' @param HA A logical vector. The indicator functions.
+#' @param HB A logical vector. The indicator functions.
 #' @param save_dir A directory path where summary statistics will be saved.
 #'
 #' @return A list containing FBM objects:
@@ -438,9 +379,9 @@
       is.data.frame(grid.ind) &&
       all(c("ID", "TYPE", "lower", "upper") %in% colnames(grid.ind)),
     "`HA` must be an integer vector" = !missing(HA) &&
-      .isIntegerVector(HA, 2L * nrow(grid.ind)),
+      .isLogicalVector(HA, nrow(grid.ind)),
     "`HB` must be a integer vector" = !missing(HB) &&
-      .isIntegerVector(HB, 2L * nrow(grid.ind))
+      .isLogicalVector(HB, nrow(grid.ind))
   )
 
   ids <- y$ID
@@ -450,76 +391,74 @@
   # number of bins in coarse grid
   L <- max(grid.ind$upper)
 
-  L2 <- 2L * L
   p <- ncol(X)
 
   # initialize covariance components FBM
-  HAX <- bigstatsr::FBM(nrow = L2, ncol = p,
+  HAX <- bigstatsr::FBM(nrow = L, ncol = p,
                         type = "double", init = 0.0,
                         backingfile = file.path(save_dir, "HAX"))
-  HBX <- bigstatsr::FBM(nrow = L2, ncol = p,
+  HBX <- bigstatsr::FBM(nrow = L, ncol = p,
                         type = "double", init = 0.0,
                         backingfile = file.path(save_dir, "HBX"))
-  HAHA <- bigstatsr::FBM(nrow = L2, ncol = L2,
+  HAHA <- bigstatsr::FBM(nrow = L, ncol = L,
                          type = "double", init = 0.0,
                          backingfile = file.path(save_dir, "HAHA"))
-  HAHB <- bigstatsr::FBM(nrow = L2, ncol = L2,
+  HAHB <- bigstatsr::FBM(nrow = L, ncol = L,
                          type = "double", init = 0.0,
                          backingfile = file.path(save_dir, "HAHB"))
-  HBHB <- bigstatsr::FBM(nrow = L2, ncol = L2,
+  HBHB <- bigstatsr::FBM(nrow = L, ncol = L,
                          type = "double", init = 0.0,
                          backingfile = file.path(save_dir, "HBHB"))
 
   # unique ID in the event data
   unique_ids <- unique(grid.ind$ID)
-  grid.ind <- rbind(grid.ind,
-                    data.frame("ID" = grid.ind$ID,
-                               "TYPE" = grid.ind$TYPE,
-                               "lower" = grid.ind$lower + L,
-                               "upper" = grid.ind$upper + L))
 
+  # group the row indices of grid.ind that pertain to each ID
+  rows_by_id <- split(seq_len(nrow(grid.ind)), grid.ind$ID)
+  
   for (i in unique_ids) {
-
+    
     # identify which rows of grid.ind pertain to the case under consideration
     # further limit to only those with H = 1
-    cases_A <- grid.ind$ID == i & HA == 1L
-    cases_B <- grid.ind$ID == i & HB == 1L
-
-    if (any(cases_A)) {
+    rows <- rows_by_id[[i]]
+    cases_A <- rows[HA[rows]]
+    cases_B <- rows[HB[rows]]
+    
+    if (length(cases_A) + length(cases_B) > 0L) {
+      use <- match(i, ids)
+      if (is.na(use)) next
+      v <- 1.0 / phi.hat[use]
+      Xvec <- X[use, , drop = FALSE]
+    } else {
+      next
+    }
+    
+    if (length(cases_A) > 0L) {
       # get all grid units spanned by the events of this case
-      idx <- sapply(which(cases_A),
-                    function(j) {grid.ind$lower[j]:grid.ind$upper[j]}) |>
-        unlist() |> c()
-
-      use <- ids == i
-      Xmat <- matrix(X[use, ]/ phi.hat[use], nrow = length(idx), ncol = p, byrow = TRUE)
+      idx <- unlist(Map(seq, grid.ind$lower[cases_A], grid.ind$upper[cases_A]), 
+                    use.names = FALSE)
 
       # update H^T H and H^T X
-      HAHA[idx, idx] <- HAHA[idx, idx] + 1.0 / phi.hat[use]
-      HAX[idx, ] <- HAX[idx, ] +  Xmat
+      HAHA[idx, idx] <- HAHA[idx, idx] + v
+      HAX[idx, ] <- HAX[idx, ] +  Xvec[rep(1L, length(idx)), ] * v
 
-      if (any(cases_B)) {
-        idxB <- sapply(which(cases_B),
-                       function(j) {grid.ind$lower[j]:grid.ind$upper[j]}) |>
-          unlist() |> c()
+      if (length(cases_B) > 0L) {
+        idxB <- unlist(Map(seq, grid.ind$lower[cases_B], grid.ind$upper[cases_B]), 
+                       use.names = FALSE)
 
-        Xmat <- matrix(X[use, ]/ phi.hat[use], nrow = length(idxB), ncol = p, byrow = TRUE)
-
-        HAHB[idx, idxB] <- HAHB[idx, idxB] + 1.0 / phi.hat[use]
-        HBHB[idxB, idxB] <- HBHB[idxB, idxB] + 1.0 / phi.hat[use]
-        HBX[idxB, ] <- HBX[idxB, ] + Xmat
+        HAHB[idx, idxB] <- HAHB[idx, idxB] + v
+        HBHB[idxB, idxB] <- HBHB[idxB, idxB] + v
+        HBX[idxB, ] <- HBX[idxB, ] +  Xvec[rep(1L, length(idxB)), ] * v
       }
 
-    } else if (any(cases_B)) {
+    } else if (length(cases_B) > 0L) {
       # get all grid units spanned by the events of this case
-      idx <- sapply(which(cases_B),
-                    function(j) {grid.ind$lower[j]:grid.ind$upper[j]}) |>
-        unlist() |> c()
-      use <- ids == i
-      Xmat <- matrix(X[use, ]/ phi.hat[use], nrow = length(idx), ncol = p, byrow = TRUE)
+      idx <- unlist(Map(seq, grid.ind$lower[cases_B], grid.ind$upper[cases_B]), 
+                    use.names = FALSE)
+      
       # update H^T H and H^T X
-      HBHB[idx, idx] <- HBHB[idx, idx] + 1.0 / phi.hat[use]
-      HBX[, idx] <- HBX[, idx] +  Xmat
+      HBHB[idx, idx] <- HBHB[idx, idx] + v
+      HBX[idx,] <- HBX[idx, ] +   Xvec[rep(1L, length(idx)), ]
     }
   }
 
@@ -532,37 +471,24 @@
                          ncol = ncol(HAX),
                          type = "double", init = 0.0,
                          backingfile = file.path(save_dir, "HAX2"))
-
-  tmp <- bigstatsr::big_apply(
-    X = HAX,
-    a.FUN = function(X, ind, xtx, hax) {
-      hax[,] <- hax[,] + X[, ind] %*% xtx[ind, ]
-      NULL
-    },
-    a.combine = 'c',
-    block.size = 100,
-    hax = HAX2,
-    xtx = xtx_inv_sqrt
-  )
-
+  
+  for (i in seq(1L, L, by = 100)) {
+    rows <- i:min(i + 100 - 1L, L)
+    HAX2[rows, ] <- HAX[rows, ] %*% xtx_inv_sqrt
+  }
+  
   HAX2$save()
 
   HBX2 <- bigstatsr::FBM(nrow = nrow(HBX),
                          ncol = ncol(HBX),
                          type = "double", init = 0.0,
                          backingfile = file.path(save_dir, "HBX2"))
-  tmp <- bigstatsr::big_apply(
-    X = HBX,
-    a.FUN = function(X, ind, xtx, hbx) {
-      hbx[,] <- hbx[,] + X[, ind] %*% xtx[ind, ]
-      NULL
-    },
-    a.combine = 'c',
-    block.size = 100,
-    hbx = HBX2,
-    xtx = xtx_inv_sqrt
-  )
-
+  
+  for (i in seq(1L, L, by = 100)) {
+    rows <- i:min(i + 100 - 1L, L)
+    HBX2[rows, ] <- HBX[rows, ] %*% xtx_inv_sqrt
+  }
+  
   HBX2$save()
 
   list("HAHA" = HAHA,
@@ -608,10 +534,10 @@
     "`grid.ind` must be a data.frame" = !missing(grid.ind) &&
       is.data.frame(grid.ind) &&
       all(c("ID", "TYPE", "lower", "upper") %in% colnames(grid.ind)),
-    "`HA` must be an integer vector" = !missing(HA) &&
-      .isIntegerVector(HA, 2L * nrow(grid.ind)),
-    "`HB` must be an integer vector" = !missing(HB) &&
-      .isIntegerVector(HB, 2L * nrow(grid.ind)),
+    "`HA` must be an logical vector" = !missing(HA) &&
+      .isLogicalVector(HA, nrow(grid.ind)),
+    "`HB` must be an logical vector" = !missing(HB) &&
+      .isLogicalVector(HB, nrow(grid.ind)),
     "`use.big.memory` must be a logical" = !missing(use.big.memory) &&
       .isLogicalVector(use.big.memory, 1L)
   )
@@ -623,6 +549,83 @@
   } else{
     .computeCov.Matrix(y, X, xtx_inv_sqrt, phi.hat, grid.ind, HA, HB)
   }
+}
+
+#' Steps for obtaining smaller dimension components for DUP or DEL
+#'
+#' @noRd
+#'
+#' @param L A vector. Grid boundaries.
+#' @param M A data frame. Contains ID, type and index for lower and upper grid
+#'   boundaries.
+#' @param cutoff A numeric scalar. The cutoff at which TYPE values are deemed
+#'   to be duplicates or deletions
+#' @param y A data.frame object. Contains column ID, Fitted (the fitted values
+#'   of the outcome regression), and Residual (the residuals of the outcome
+#'   regression).
+#' @param X A matrix object. The design matrix of the outcome regression.
+#' @param phenoType A character object. Must be one of "bin" or "cont" indicating
+#'   that that phenotype of interest is binary or continuous, respectively.
+#' @param event A character object. Must be one of "dup" or "del" indicating that
+#'   the CNV event of interest is duplication or deletion, respectively.
+#' @param use.big.memory A logical. If TRUE file-backed matrices are used to
+#'   store H-based matrices instead of Matrix objects.
+#' @param save_dir A directory path where summary statistics will be saved.
+#'
+#' @return A list object containing `$grid` a vector of the grid boundaries;
+#'  `$SSA` the score statistic for group A; `$SSB` the score statistic for group
+#'  B; `$HAX` an Lxp matrix of H_A x; `$HBX` an Lxp matrix of H_B X;
+#'  `$HAHA` an LxL matrix; `$HAHB` an LxL matrix; and `$HBHB` an LxL matrix.
+#' @keywords internal
+.subscoreProcedure <- function(L, M, cutoff,
+                               y, X, phenoType = c("bin", "cont"),
+                               event = c("dup","del"),
+                               use.big.memory, save_dir) {
+  
+  phenoType <- match.arg(phenoType)
+  event <- match.arg(event)
+  
+  stopifnot(
+    #"`cnvData` must be a data.frame" = !missing(cnvData) && .isCNV(cnvData),
+    "`cutoff` must be a scalar" = !missing(cutoff) && .isNumericVector(cutoff, 1L),
+    "`y` must be a data.frame" = !missing(y) && is.data.frame(y) &&
+      all(c("ID", "Fitted", "Residuals") %in% colnames(y)),
+    "`X` must be a matrix" = !missing(X) && is.matrix(X),
+    "`use.big.memory` must be a logical" = !missing(use.big.memory) &&
+      .isLogicalVector(use.big.memory, 1L)
+  )
+  
+  # switch function and cutoff for SSB based on dup or del
+  func <- switch(event,
+                 "dup" = function(x, cutoff) { x > {cutoff - 1e-8} },
+                 "del" = function(x, cutoff) { x < {cutoff + 1e-8} })
+  
+  cutoff2 <- switch(event,
+                    "dup" = cutoff + 1.0,
+                    "del" = cutoff - 1.0)
+  
+  # calculate score
+  px <- ncol(X)
+  result <- list()
+  result[["grid"]] <- L
+  result[["SSA"]] <- .computeSS(y, M, func, cutoff, px, phenoType)
+  result[["SSB"]] <- .computeSS(y, M, func, cutoff2, px, phenoType)
+  
+  # Compute H outside the loop -- note that HA and HB are now Logical
+  HA <- do.call(func, list(M$TYPE, cutoff))
+  HB <- do.call(func, list(M$TYPE, cutoff2))
+
+  n <- nrow(y)
+  
+  phi.hat <- switch(phenoType,
+                    "cont" = rep(as.numeric(crossprod(y$Residuals) / {n - px})|> drop(), nrow(y)),
+                    "bin" = 1.0 / {y$Fitted * {1.0 - y$Fitted}})
+  
+  Convfun <- .computeCov(y, X, phi.hat, M, HA, HB,
+                         use.big.memory = use.big.memory, save_dir)
+  
+  c(result, Convfun)
+  
 }
 
 #' Procedure for Estimating Score Statistic for Specific Event Type
@@ -645,66 +648,33 @@
 #'   that that phenotype of interest is binary or continuous, respectively.
 #' @param use.big.memory A logical. If TRUE file-backed matrices are used to
 #'   store H-based matrices instead of Matrix objects
-#' @param save_dir A directory path where summary statistics will be saved.
+#' @param save_dir.dup A directory path where summary statistics of "DUP" will be saved.
+#' @param save_dir.del A directory path where summary statistics of "DEL" will be saved.
 #'
-#' @return A list object containing `$grid` a vector of the grid boundaries;
-#'  `$SSA` the score statistic for group A; `$SSB` the score statistic for group
-#'  B; `$HAX` an 2Lxp matrix of H_A x; `$HBX` an 2Lxp matrix of H_B X;
-#'  `$HAHA` an 2Lx2L matrix; `$HAHB` an 2Lx2L matrix; and `$HBHB` an 2Lx2L matrix.
+#' @return A list object containing two lists: "DUP" and "DEL", each list contains
+#' the output of .subscoreProcedure.
 #' @keywords internal
 .scoreProcedure <- function(cnvData, cutoff.dup, cutoff.del,
                             y, X, phenoType = c("bin", "cont"),
-                            use.big.memory, save_dir) {
-
-  phenoType <- match.arg(phenoType)
-
-  stopifnot(
-    "`cnvData` must be a data.frame" = !missing(cnvData) && .isCNV(cnvData),
-    "`cutoff.dup` must be a scalar" = !missing(cutoff.dup) && .isNumericVector(cutoff.dup, 1L),
-    "`cutoff.del` must be a scalar" = !missing(cutoff.del) && .isNumericVector(cutoff.del, 1L),
-    "`y` must be a data.frame" = !missing(y) && is.data.frame(y) &&
-      all(c("ID", "Fitted", "Residuals") %in% colnames(y)),
-    "`X` must be a matrix" = !missing(X) && is.matrix(X),
-    "`use.big.memory` must be a logical" = !missing(use.big.memory) &&
-      .isLogicalVector(use.big.memory, 1L)
-  )
-
+                            use.big.memory, save_dir.dup, save_dir.del) {
+  
   # generate boundary points of coarsened grid
   L <- .defineGrid(cnvData)
-
+  
   # match coarsened grid units to event records
   M <- .matchGrid(cnvData, L)
-
-  # adding dup and del together
-  func.dup <- function(x, cutoff.dup) { as.integer(x > {cutoff.dup - 1e-8}) }
-  func.del <- function(x, cutoff.del) { as.integer(x < {cutoff.del + 1e-8}) }
-
-  # calculate score
-  px <- ncol(X)
-  result <- list()
-  result[["grid"]] <- L
-  result[["SSA"]] <- c(.computeSS(y, M, func.dup, cutoff.dup, px, phenoType),
-                       .computeSS(y, M, func.del, cutoff.del, px, phenoType))
-  result[["SSB"]] <- c(.computeSS(y, M, func.dup, cutoff.dup + 1.0, px, phenoType),
-                       .computeSS(y, M, func.del, cutoff.del - 1.0, px, phenoType))
-
-  # Compute H outside the loop
-  HA <- c(do.call(func.dup, list(M$TYPE, cutoff.dup)),
-          do.call(func.del, list(M$TYPE, cutoff.del)))
-  HB <- c(do.call(func.dup, list(M$TYPE, cutoff.dup + 1.0)),
-          do.call(func.del, list(M$TYPE, cutoff.del - 1.0)))
-
-  n <- nrow(y)
-
-  phi.hat <- switch(phenoType,
-                    "cont" = rep(as.numeric(crossprod(y$Residuals) / {n - px})|> drop(), nrow(y)),
-                    "bin" = 1.0 / {y$Fitted * {1.0 - y$Fitted}})
-
-  Convfun <- .computeCov(y, X, phi.hat, M, HA, HB, use.big.memory = use.big.memory,
-                         save_dir)
-
-  c(result, Convfun)
-
+  
+  res_DUP <- .subscoreProcedure(L, M, cutoff.dup,
+                                y, X, phenoType, event = "dup",
+                                use.big.memory, save_dir.dup)
+  
+  res_DEL <- .subscoreProcedure(L, M, cutoff.del,
+                                y, X, phenoType, event = "del",
+                                use.big.memory, save_dir.del)
+  
+  list("DUP" = res_DUP,
+       "DEL" = res_DEL)
+  
 }
 
 #' Compute Test statistics
@@ -716,10 +686,9 @@
 #' @keywords internal
 
 .computeTS <- function(score, grid) {
-
   stopifnot(
-    "`score` must be a numeric vector with double length of `grid`" =
-      !missing(score) &&.isNumericVector(score, 2*(length(grid)-1)),
+    "`score` must be a numeric vector with length of `grid`" =
+      !missing(score) &&.isNumericVector(score, (length(grid)-1)),
     "`grid` must be a numeric vector" =
       !missing(grid) && .isNumericVector(grid) && length(grid) > 1L)
 
@@ -868,6 +837,8 @@ CONCUR_worker <- function(cnvData, phenoData, cutoff.dup, cutoff.del,
     "`save_dir` must be specified if using big memory" =
       !use.big.memory || {use.big.memory &&!is.null(save_dir)}
   )
+  
+  class(cnvData) <- c(class(cnvData), "cnvData")
 
   phenoData <- phenoData[order(phenoData$ID), ]
   covData <- covData[order(covData$ID), ]
@@ -905,26 +876,33 @@ CONCUR_worker <- function(cnvData, phenoData, cutoff.dup, cutoff.del,
     chr_name <- paste0("chr", ch)
     # generate a directory for each chromosome to store SS
     chr_dir <- if (!is.null(save_dir)) file.path(save_dir, chr_name) else NULL
+    
+    chr_dir.dup <- if (!is.null(chr_dir)) file.path(chr_dir, "DUP") else NULL
+    
+    chr_dir.del <- if (!is.null(chr_dir)) file.path(chr_dir, "DEL") else NULL
+    
     if (!is.null(chr_dir)){
       dir.create(chr_dir, recursive = TRUE, showWarnings = FALSE)
     }
-
+    
     cnv_subset <- cnvData[cnvData$CHR == ch, ]
     cnv_subset <- cnv_subset[order(cnv_subset$ID, cnv_subset$BP1), ]
-
+    
     chr_stats <- .scoreProcedure(cnv_subset,
                                  cutoff.dup,
                                  cutoff.del,
                                  y.star, X,
                                  phenoType,
                                  use.big.memory = use.big.memory,
-                                 save_dir = chr_dir)
+                                 save_dir.dup = chr_dir.dup,
+                                 save_dir.del = chr_dir.del)
     # save SS for later share
-    .save_chr_stats(chr_stats, chr_name, use.big.memory, save_dir)
-
+    .save_chr_stats(chr_stats$DUP, chr_name, use.big.memory, chr_dir.dup)
+    .save_chr_stats(chr_stats$DEL, chr_name, use.big.memory, chr_dir.del)
+    
     res[[chr_name]] <- chr_stats
   }
-
+  
   res
 
 }

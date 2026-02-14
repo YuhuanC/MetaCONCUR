@@ -180,3 +180,48 @@
   }
 
 }
+
+.combineDELDUP <- function(del, dup) {
+  
+  if (inherits(del$meta$HAHA, "FBM")) {
+    for (el in c("HAHA", "HAHB", "HBHB")) {
+      nrow_A <- nrow(del$meta[[el]])
+      ncol_A <- ncol(del$meta[[el]])
+      nrow_B <- nrow(dup$meta[[el]])
+      ncol_B <- ncol(dup$meta[[el]])
+    
+      total_rows <- nrow_A + nrow_B
+      total_cols <- ncol_A + ncol_B
+    
+      FBM_Combined <- FBM(
+        nrow = total_rows,
+        ncol = total_cols,
+        type = typeof(del$meta[[el]]),
+        backingfile = tempfile(paste0(el, "_combined"), tmpdir = tempdir()))$save()
+    
+      chunk_size <- 100L
+    
+      for (start_row in seq(1L, nrow_A, by = chunk_size)) {
+        end_row <- min(start_row + chunk_size - 1L, nrow_A)
+        FBM_Combined[start_row:end_row, 1:ncol_A] <- del$meta[[el]][start_row:end_row, ]
+      }
+    
+      row_start_B_combined <- nrow_A + 1L
+      col_start_B_combined <- ncol_A + 1L
+      for (start_row in seq(1L, nrow_B, by = chunk_size)) {
+        end_row <- min(start_row + chunk_size - 1L, nrow_B)
+        combined_start <- row_start_B_combined + (start_row - 1L)
+        combined_end <- row_start_B_combined + (end_row - 1L)
+        FBM_Combined[combined_start:combined_end, col_start_B_combined:total_cols] <- dup$meta[[el]][start_row:end_row, ]
+      }
+      del$meta[[el]] <- FBM_Combined
+    }    
+  } else {
+    del$meta$HAHA <- Matrix::bdiag(del$meta$HAHA, dup$meta$HAHA)
+    del$meta$HAHB <- Matrix::bdiag(del$meta$HAHB, dup$meta$HAHB)
+    del$meta$HBHB <- Matrix::bdiag(del$meta$HBHB, dup$meta$HBHB)
+  }
+  
+  return(del)
+  
+}

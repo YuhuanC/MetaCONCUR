@@ -1,69 +1,84 @@
 test_that(".computeTSMeta works", {
   library(Matrix)
 
-  study1 <- list(grid = c(150,200,300),
-                 SSA = c(1,0,0,2),
-                 SSB = c(1,0,0,0),
-                 HAHA = rbind(cbind(Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
-                                    Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                              cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                                    Matrix(c(0,0,0,2),nrow = 2,ncol = 2))),
-                 HAHB = forceSymmetric(rbind(cbind(Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                                             cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)))),
-                 HBHB = forceSymmetric(rbind(cbind(Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                                             cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)))),
-                 HAX = Matrix(c(1,0,0,1,0,0,0,1),nrow = 4,ncol = 2),
-                 HBX = Matrix(c(1,0,0,0,0,0,0,0),nrow = 4,ncol = 2)
+  study1 <- list(
+    DUP = list(
+      grid = c(150,200,300),
+      SSA = c(1,0),
+      SSB = c(1,0),
+      HAHA = Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
+      HAHB = Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
+      HBHB = Matrix(c(1,0,0,0),nrow = 2,ncol = 2),
+      HAX = Matrix(c(1,0,0,1),nrow = 2,ncol = 2),
+      HBX = Matrix(c(1,0,0,0),nrow = 2,ncol = 2)),
+    DEL = list(
+      grid = c(150,200,300),
+      SSA = c(0,2),
+      SSB = c(0,0),
+      HAHA = Matrix(c(0,0,0,2),nrow = 2,ncol = 2),
+      HAHB = Matrix(rep(0,4),nrow = 2,ncol = 2),
+      HBHB = Matrix(rep(0,4),nrow = 2,ncol = 2),
+      HAX = Matrix(c(0,0,0,1),nrow = 2,ncol = 2),
+      HBX = Matrix(c(0,0,0,0),nrow = 2,ncol = 2))
   )
 
-  study2 <- list(grid = c(100,250,350),
-                 SSA = c(2,1,0,1),
-                 SSB = c(0,0,0,1),
-                 HAHA = rbind(cbind(Matrix(c(0,1,0,1),nrow = 2,ncol = 2),
-                                    Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                              cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                                    Matrix(c(2,0,0,0),nrow = 2,ncol = 2))),
-                 HAHB = forceSymmetric(rbind(cbind(Matrix(c(0,0,0,1),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                                             cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)))),
-                 HBHB = forceSymmetric(rbind(cbind(Matrix(c(0,0,0,1),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)),
-                                             cbind(Matrix(rep(0,4),nrow = 2,ncol = 2),
-                                                   Matrix(rep(0,4),nrow = 2,ncol = 2)))),
-                 HAX = Matrix(c(0,1,0,1,2,0,0,0),nrow = 4,ncol = 2),
-                 HBX = Matrix(c(0,0,0,1,0,0,0,0),nrow = 4,ncol = 2)
+  study2 <- list(
+    DUP = list(grid = c(100,250,350),
+                 SSA = c(2,1),
+                 SSB = c(0,0),
+                 HAHA = Matrix(c(0,1,0,1),nrow = 2,ncol = 2),
+                 HAHB = Matrix(c(0,0,0,1),nrow = 2,ncol = 2),
+                 HBHB = Matrix(c(0,0,0,1),nrow = 2,ncol = 2),
+                 HAX = Matrix(c(0,1,0,1),nrow = 2,ncol = 2),
+                 HBX = Matrix(c(0,0,0,1),nrow = 2,ncol = 2)),
+    DEL = list(grid = c(100,250,350),
+               SSA = c(0,1),
+               SSB = c(0,1),
+               HAHA = Matrix(c(2,0,0,0),nrow = 2,ncol = 2),
+               HAHB = Matrix(rep(0,4),nrow = 2,ncol = 2),
+               HBHB = Matrix(rep(0,4),nrow = 2,ncol = 2),
+               HAX = Matrix(c(2,0,0,0),nrow = 2,ncol = 2),
+               HBX = Matrix(c(0,0,0,0),nrow = 2,ncol = 2))
   )
 
   grid.meta <- c(100,150,200,250,300,350)
 
-  study_SS <- list()
+  study_SS <- list("DUP" = list(), "DEL" = list())
 
-  study_SS <- rlist::list.append(study_SS, study1)
-
-  study_SS <- rlist::list.append(study_SS, study2)
-
-  meta.data1 <- lapply(study_SS, .alignStudyToMeta, meta.grid = grid.meta)
-  meta.data1$meta <- list()
+  study_SS$DUP <- rlist::list.append(study_SS$DUP, study1$DUP, study2$DUP)
+  study_SS$DEL <- rlist::list.append(study_SS$DEL, study1$DEL, study2$DEL)
+  
+  meta.data1_DUP <- lapply(study_SS$DUP, .alignStudyToMeta, meta.grid = grid.meta)
+  meta.data1_DEL <- lapply(study_SS$DEL, .alignStudyToMeta, meta.grid = grid.meta)
+  meta.data1 <- list(meta = list(), "DUP" = meta.data1_DUP, "DEL" = meta.data1_DEL)
 
   meta.data2 <- meta.data1
 
-  sum_SSA <- meta.data2[[1L]]$SSA + meta.data2[[2L]]$SSA
-  sum_SSB <- meta.data2[[1L]]$SSB + meta.data2[[2L]]$SSB
+  sum_SSA_DUP <- meta.data2$DUP[[1L]]$SSA + meta.data2$DUP[[2L]]$SSA
+  sum_SSA_DEL <- meta.data2$DEL[[1L]]$SSA + meta.data2$DEL[[2L]]$SSA
+  sum_SSB_DUP <- meta.data2$DUP[[1L]]$SSB + meta.data2$DUP[[2L]]$SSB
+  sum_SSB_DEL <- meta.data2$DEL[[1L]]$SSB + meta.data2$DEL[[2L]]$SSB
+  
+  meta.data2$DUP[[1L]]$SSA <- NULL
+  meta.data2$DUP[[1L]]$SSB <- NULL
+  meta.data2$DUP[[2L]]$SSA <- NULL
+  meta.data2$DUP[[2L]]$SSB <- NULL
+  meta.data2$DEL[[1L]]$SSA <- NULL
+  meta.data2$DEL[[1L]]$SSB <- NULL
+  meta.data2$DEL[[2L]]$SSA <- NULL
+  meta.data2$DEL[[2L]]$SSB <- NULL
 
-  meta.data2[[1L]]$SSA <- NULL
-  meta.data2[[1L]]$SSB <- NULL
-  meta.data2[[2L]]$SSA <- NULL
-  meta.data2[[2L]]$SSB <- NULL
-
-  meta.data2$meta$TS <- .computeTS(sum_SSA, grid.meta) +
-    .computeTS(sum_SSB, grid.meta)
-
-  expect_equal(.computeTSMeta(meta.data1, grid.meta), meta.data2)
+  meta.data2$DUP$meta$TS <- .computeTS(sum_SSA_DUP, grid.meta) + .computeTS(sum_SSB_DUP, grid.meta)
+  meta.data2$DEL$meta$TS <- .computeTS(sum_SSA_DEL, grid.meta)+ .computeTS(sum_SSB_DEL, grid.meta)
+    
+  expect_equal(.computeTSMeta(meta.data1$DUP, grid.meta), meta.data2$DUP)
+  
+  meta.data2$meta$TS <- .computeTS(sum_SSA_DEL, grid.meta) +
+                            .computeTS(sum_SSB_DEL, grid.meta)
+  
+  
+  expect_equal(.computeTSMeta(meta.data1$DEL, grid.meta), meta.data2$DEL)
+  
 })
 
 test_that(".eigen.Matrix works",{
@@ -140,187 +155,237 @@ test_that("Meta works",{
 
   withr::with_seed(12345,{
     # create a random sparse matrix 20 by 20
-    HA1 <- rsparsematrix(nrow = 20, ncol = 20, density = 0.1)
-    HB1 <- rsparsematrix(nrow = 20, ncol = 20, density = 0.1)
-    HAB1 <- rsparsematrix(nrow = 20, ncol = 20, density = 0.1)
+    HA1 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HB1 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HAB1 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    grid <- cumsum(c(sample(101:200, 1),
+                     sample(50:100, size = 10, replace = TRUE)))
 
-    study1 <- list(grid = cumsum(c(sample(101:200, 1),
-                                   sample(50:100, size = 10, replace = TRUE))),
-                   SSA = sample(1:10, 20, replace = TRUE),
-                   SSB = sample(1:10, 20, replace = TRUE),
-                   HAHA = (HA1 + t(HA1)) / 2,
-                   HAHB = (HAB1 + t(HAB1)) / 2,
-                   HBHB = (HB1 +t(HB1)) / 2,
-                   HAX = sparseMatrix(i = sample(1:20, 10, replace = TRUE),
-                                      j = sample(1:5, 10, replace = TRUE),
-                                      x = rnorm(10), dims = c(20, 5)),
-                   HBX = sparseMatrix(i = sample(1:20, 10, replace = TRUE),
-                                      j = sample(1:5, 10, replace = TRUE),
-                                      x = rnorm(10), dims = c(20, 5))
+    study1 <- list(
+      DUP = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA1 + t(HA1)) / 2,
+                 HAHB = (HAB1 + t(HAB1)) / 2,
+                 HBHB = (HB1 +t(HB1)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5))),
+      DEL = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA1 + t(HA1)) / 2,
+                 HAHB = (HAB1 + t(HAB1)) / 2,
+                 HBHB = (HB1 +t(HB1)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)))
     )
 
-    HA2 <- rsparsematrix(nrow = 20, ncol = 20, density = 0.1)
-    HB2 <- rsparsematrix(nrow = 20, ncol = 20, density = 0.1)
-    HAB2 <- rsparsematrix(nrow = 20, ncol = 20, density = 0.1)
-
-    study2 <- list(grid = cumsum(c(sample(101:200, 1),
-                                   sample(50:100, size = 10, replace = TRUE))),
-                   SSA = sample(1:10, 20, replace = TRUE),
-                   SSB = sample(1:10, 20, replace = TRUE),
+    HA2 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HB2 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HAB2 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    grid <- cumsum(c(sample(101:200, 1),
+                     sample(50:100, size = 10, replace = TRUE)))
+    study2 <- list(
+      DUP = list(grid = grid,
+                   SSA = sample(1:10, 10, replace = TRUE),
+                   SSB = sample(1:10, 10, replace = TRUE),
                    HAHA = (HA2 + t(HA2)) / 2,
                    HAHB = (HAB2 + t(HAB2)) / 2,
                    HBHB = (HB2 +t(HB2)) / 2,
-                   HAX = sparseMatrix(i = sample(1:20, 10, replace = TRUE),
-                                      j = sample(1:5, 10, replace = TRUE),
-                                      x = rnorm(10), dims = c(20, 5)),
-                   HBX = sparseMatrix(i = sample(1:20, 10, replace = TRUE),
-                                      j = sample(1:5, 10, replace = TRUE),
-                                      x = rnorm(10), dims = c(20, 5))
-    )
+                   HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                      j = sample(1:5, 5, replace = TRUE),
+                                      x = rnorm(5), dims = c(10, 5)),
+                   HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                      j = sample(1:5, 5, replace = TRUE),
+                                      x = rnorm(5), dims = c(10, 5))
+    ),
+    DEL = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA2 + t(HA2)) / 2,
+                 HAHB = (HAB2 + t(HAB2)) / 2,
+                 HBHB = (HB2 +t(HB2)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5))
+    ))
   })
 
-  meta_grid <- list(study1$grid,study2$grid) |> unlist() |> unique() |> sort()
+  meta_grid <- list(study1$DEL$grid,study2$DEL$grid) |> unlist() |> unique() |> sort()
 
-  study_SS <- list()
+  study_SS <- list("DUP" = list(), "DEL" = list())
+  
+  study_SS$DUP <- rlist::list.append(study_SS$DUP, study1$DUP, study2$DUP)
+  study_SS$DEL <- rlist::list.append(study_SS$DEL, study1$DEL, study2$DEL)
+  
+  meta.data1_DUP <- lapply(study_SS$DUP, .alignStudyToMeta, meta.grid = meta_grid)
+  meta.data1_DEL <- lapply(study_SS$DEL, .alignStudyToMeta, meta.grid = meta_grid)
+  meta.data1 <- list(meta = list(), "DUP" = meta.data1_DUP, "DEL" = meta.data1_DEL)
+  
+  meta.data1$DUP <- .computeTSMeta(meta.data1$DUP, meta_grid)
+  meta.data1$DUP <- .sumHAHA(meta.data1$DUP)
+  meta.data1$DUP <- .sumHAHB(meta.data1$DUP)
+  meta.data1$DUP <- .sumHBHB(meta.data1$DUP)
+  meta.data1$DUP <- .rmStudies(meta.data1$DUP)
 
-  study_SS <- rlist::list.append(study_SS, study1)
+  meta.data1$DEL <- .computeTSMeta(meta.data1$DEL, meta_grid)
+  meta.data1$DEL <- .sumHAHA(meta.data1$DEL)
+  meta.data1$DEL <- .sumHAHB(meta.data1$DEL)
+  meta.data1$DEL <- .sumHBHB(meta.data1$DEL)
+  meta.data1$DEL <- .rmStudies(meta.data1$DEL)
+  
+  meta.data1$TSmeta <- meta.data1$DEL$meta$TS + meta.data1$DUP$meta$TS
 
-  study_SS <- rlist::list.append(study_SS, study2)
-
-  meta.data1 <- lapply(study_SS, .alignStudyToMeta, meta.grid = meta_grid)
-
-  meta.data1$meta <- list()
-
-  meta.data2 <- meta.data1
-
-  meta.data1 <- .computeTSMeta(meta.data1, meta_grid)
-
-  meta.data1 <- .sumHAHA(meta.data1)
-  meta.data1 <- .sumHAHB(meta.data1)
-  meta.data1 <- .sumHBHB(meta.data1)
-  meta.data1 <- .rmStudies(meta.data1)
-
-  Phi <- .combineBlocks(meta.data1$meta, meta_grid)
+  meta.data1$meta <- .combineDELDUP(meta.data1$DEL, meta.data1$DUP)
+  
+  Phi <- .combineBlocks(meta.data1$meta$meta, meta_grid)
 
   ee_meta <- .eigen.Matrix(Phi)
 
-  exp.res <- .getPValues(q = meta.data1$meta$TS, lambda = ee_meta, method = "meta")
+  exp.res <- .getPValues(q = meta.data1$meta$meta$TS, lambda = ee_meta, method = "meta")
 
-  expect_equal(Meta(study_SS[[1L]],study_SS[[2L]]), exp.res)
+  expect_equal(Meta(study1, study2), exp.res)
+  withr::defer({
+    rm(list = ls())
+    gc()
+  }, envir = environment())
 
+})
+
+test_that("Meta works",{
+  library(Matrix)
+  library(bigstatsr)
+  
+  withr::with_seed(12345,{
+    # create a random sparse matrix 20 by 20
+    HA1 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HB1 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HAB1 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    grid <- cumsum(c(sample(101:200, 1),
+                     sample(50:100, size = 10, replace = TRUE)))
+    
+    study1 <- list(
+      DUP = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA1 + t(HA1)) / 2,
+                 HAHB = (HAB1 + t(HAB1)) / 2,
+                 HBHB = (HB1 +t(HB1)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5))),
+      DEL = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA1 + t(HA1)) / 2,
+                 HAHB = (HAB1 + t(HAB1)) / 2,
+                 HBHB = (HB1 +t(HB1)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)))
+    )
+    
+    HA2 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HB2 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    HAB2 <- rsparsematrix(nrow = 10, ncol = 10, density = 0.1)
+    grid <- cumsum(c(sample(101:200, 1),
+                     sample(50:100, size = 10, replace = TRUE)))
+    study2 <- list(
+      DUP = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA2 + t(HA2)) / 2,
+                 HAHB = (HAB2 + t(HAB2)) / 2,
+                 HBHB = (HB2 +t(HB2)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5))
+      ),
+      DEL = list(grid = grid,
+                 SSA = sample(1:10, 10, replace = TRUE),
+                 SSB = sample(1:10, 10, replace = TRUE),
+                 HAHA = (HA2 + t(HA2)) / 2,
+                 HAHB = (HAB2 + t(HAB2)) / 2,
+                 HBHB = (HB2 +t(HB2)) / 2,
+                 HAX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5)),
+                 HBX = sparseMatrix(i = sample(1:10, 5, replace = TRUE),
+                                    j = sample(1:5, 5, replace = TRUE),
+                                    x = rnorm(5), dims = c(10, 5))
+      ))
+  })
+  
+  meta_grid <- list(study1$DEL$grid,study2$DEL$grid) |> unlist() |> unique() |> sort()
+  
+  study_SS <- list("DUP" = list(), "DEL" = list())
+  
+  study_SS$DUP <- rlist::list.append(study_SS$DUP, study1$DUP, study2$DUP)
+  study_SS$DEL <- rlist::list.append(study_SS$DEL, study1$DEL, study2$DEL)
+  
+  meta.data1_DUP <- lapply(study_SS$DUP, .alignStudyToMeta, meta.grid = meta_grid)
+  meta.data1_DEL <- lapply(study_SS$DEL, .alignStudyToMeta, meta.grid = meta_grid)
+  meta.data1 <- list(meta = list(), "DUP" = meta.data1_DUP, "DEL" = meta.data1_DEL)
+  
   # test for FBM
   study_SS2 <- study_SS
-  # Convert HAHA Matrix into a matrix
-  study_SS2[[1L]][["HAHA"]] <- as.matrix(study_SS2[[1L]][["HAHA"]])
-  # Convert HAHA matrix into an FBM
-  study_SS2[[1L]][["HAHA"]] <- as_FBM(study_SS2[[1L]][["HAHA"]])
-
-  # Convert HAHA Matrix into a matrix
-  study_SS2[[2L]][["HAHA"]] <- as.matrix(study_SS2[[2L]][["HAHA"]])
-  # Convert a matrix into an FBM
-  study_SS2[[2L]][["HAHA"]] <- as_FBM(study_SS2[[2L]][["HAHA"]])
-
-  # Convert HAHB Matrix into a matrix
-  study_SS2[[1L]]$HAHB <- as.matrix(study_SS2[[1L]]$HAHB)
-  # Convert HAHB matrix into an FBM
-  study_SS2[[1L]]$HAHB <- as_FBM(study_SS2[[1L]]$HAHB)
-
-  # Convert HAHB Matrix into a matrix
-  study_SS2[[2L]]$HAHB <- as.matrix(study_SS2[[2L]]$HAHB)
-  # Convert HAHB matrix into an FBM
-  study_SS2[[2L]]$HAHB <- as_FBM(study_SS2[[2L]]$HAHB)
-
-  # Convert HBHB Matrix into a matrix
-  study_SS2[[1L]][["HBHB"]] <- as.matrix(study_SS2[[1L]][["HBHB"]])
-  # Convert HBHB matrix into an FBM
-  study_SS2[[1L]][["HBHB"]] <- as_FBM(study_SS2[[1L]][["HBHB"]])
-
-  # Convert HBHB Matrix into a matrix
-  study_SS2[[2L]][["HBHB"]] <- as.matrix(study_SS2[[2L]][["HBHB"]])
-  # Convert HBHB matrix into an FBM
-  study_SS2[[2L]][["HBHB"]] <- as_FBM(study_SS2[[2L]][["HBHB"]])
-
-  # Convert HAX Matrix into a matrix
-  study_SS2[[1L]]$HAX <- as.matrix(study_SS2[[1L]]$HAX)
-  # Convert HAX matrix into an FBM
-  study_SS2[[1L]]$HAX <- as_FBM(study_SS2[[1L]]$HAX)
-  # Convert HBX Matrix into a matrix
-  study_SS2[[1L]]$HBX <- as.matrix(study_SS2[[1L]]$HBX)
-  # Convert HBX matrix into an FBM
-  study_SS2[[1L]]$HBX <- as_FBM(study_SS2[[1L]]$HBX)
-
-  # Convert HAX Matrix into a matrix
-  study_SS2[[2L]]$HAX <- as.matrix(study_SS2[[2L]]$HAX)
-  # Convert HAX matrix into an FBM
-  study_SS2[[2L]]$HAX <- as_FBM(study_SS2[[2L]]$HAX)
-  # Convert HBX Matrix into a matrix
-  study_SS2[[2L]]$HBX <- as.matrix(study_SS2[[2L]]$HBX)
-  # Convert HBX matrix into an FBM
-  study_SS2[[2L]]$HBX <- as_FBM(study_SS2[[2L]]$HBX)
-
-  # Convert HAHA Matrix into a matrix
-  meta.data2[[1L]][["HAHA"]] <- as.matrix(meta.data2[[1L]][["HAHA"]])
-  # Convert HAHA matrix into an FBM
-  meta.data2[[1L]][["HAHA"]] <- as_FBM(meta.data2[[1L]][["HAHA"]])
-
-  # Convert HAHA Matrix into a matrix
-  meta.data2[[2L]][["HAHA"]] <- as.matrix(meta.data2[[2L]][["HAHA"]])
-  # Convert a matrix into an FBM
-  meta.data2[[2L]][["HAHA"]] <- as_FBM(meta.data2[[2L]][["HAHA"]])
-
-  # Convert HAHB Matrix into a matrix
-  meta.data2[[1L]]$HAHB <- as.matrix(meta.data2[[1L]]$HAHB)
-  # Convert HAHB matrix into an FBM
-  meta.data2[[1L]]$HAHB <- as_FBM(meta.data2[[1L]]$HAHB)
-
-  # Convert HAHB Matrix into a matrix
-  meta.data2[[2L]]$HAHB <- as.matrix(meta.data2[[2L]]$HAHB)
-  # Convert HAHB matrix into an FBM
-  meta.data2[[2L]]$HAHB <- as_FBM(meta.data2[[2L]]$HAHB)
-
-  # Convert HBHB Matrix into a matrix
-  meta.data2[[1L]][["HBHB"]] <- as.matrix(meta.data2[[1L]][["HBHB"]])
-  # Convert HBHB matrix into an FBM
-  meta.data2[[1L]][["HBHB"]] <- as_FBM(meta.data2[[1L]][["HBHB"]])
-
-  # Convert HBHB Matrix into a matrix
-  meta.data2[[2L]][["HBHB"]] <- as.matrix(meta.data2[[2L]][["HBHB"]])
-  # Convert HBHB matrix into an FBM
-  meta.data2[[2L]][["HBHB"]] <- as_FBM(meta.data2[[2L]][["HBHB"]])
-
-  # Convert HAX Matrix into a matrix
-  meta.data2[[1L]]$HAX <- as.matrix(meta.data2[[1L]]$HAX)
-  # Convert HAX matrix into an FBM
-  meta.data2[[1L]]$HAX <- as_FBM(meta.data2[[1L]]$HAX)
-  # Convert HBX Matrix into a matrix
-  meta.data2[[1L]]$HBX <- as.matrix(meta.data2[[1L]]$HBX)
-  # Convert HBX matrix into an FBM
-  meta.data2[[1L]]$HBX <- as_FBM(meta.data2[[1L]]$HBX)
-
-  # Convert HAX Matrix into a matrix
-  meta.data2[[2L]]$HAX <- as.matrix(meta.data2[[2L]]$HAX)
-  # Convert HAX matrix into an FBM
-  meta.data2[[2L]]$HAX <- as_FBM(meta.data2[[2L]]$HAX)
-  # Convert HBX Matrix into a matrix
-  meta.data2[[2L]]$HBX <- as.matrix(meta.data2[[2L]]$HBX)
-  # Convert HBX matrix into an FBM
-  meta.data2[[2L]]$HBX <- as_FBM(meta.data2[[2L]]$HBX)
-
-  meta.data2 <- .computeTSMeta(meta.data2, meta_grid)
-
-  meta.data2 <- .sumHAHA(meta.data2)
-  meta.data2 <- .sumHAHB(meta.data2)
-  meta.data2 <- .sumHBHB(meta.data2)
-  meta.data2 <- .rmStudies(meta.data2)
-
-  Phi2 <- .combineBlocks(meta.data2$meta, meta_grid)
-
+  for (si in 1:2) {
+    for (sj in c("HAHA", "HAHB", "HBHB", "HAX", "HBX")) {
+      study_SS2$DEL[[si]][[sj]] <- as.matrix(study_SS2$DEL[[si]][[sj]])
+      study_SS2$DUP[[si]][[sj]] <- as.matrix(study_SS2$DUP[[si]][[sj]])
+      study_SS2$DEL[[si]][[sj]] <- as_FBM(study_SS2$DEL[[si]][[sj]])
+      study_SS2$DUP[[si]][[sj]] <- as_FBM(study_SS2$DUP[[si]][[sj]])
+      
+      meta.data1$DEL[[si]][[sj]] <- as.matrix(meta.data1$DEL[[si]][[sj]])
+      meta.data1$DUP[[si]][[sj]] <- as.matrix(meta.data1$DUP[[si]][[sj]])
+      meta.data1$DEL[[si]][[sj]] <- as_FBM(meta.data1$DEL[[si]][[sj]])
+      meta.data1$DUP[[si]][[sj]] <- as_FBM(meta.data1$DUP[[si]][[sj]])
+    }
+  }
+  
+  meta.data1$DUP <- .computeTSMeta(meta.data1$DUP, meta_grid)
+  meta.data1$DUP <- .sumHAHA(meta.data1$DUP)
+  meta.data1$DUP <- .sumHAHB(meta.data1$DUP)
+  meta.data1$DUP <- .sumHBHB(meta.data1$DUP)
+  meta.data1$DUP <- .rmStudies(meta.data1$DUP)
+  
+  meta.data1$DEL <- .computeTSMeta(meta.data1$DEL, meta_grid)
+  meta.data1$DEL <- .sumHAHA(meta.data1$DEL)
+  meta.data1$DEL <- .sumHAHB(meta.data1$DEL)
+  meta.data1$DEL <- .sumHBHB(meta.data1$DEL)
+  meta.data1$DEL <- .rmStudies(meta.data1$DEL)
+  
+  meta.data1$TSmeta <- meta.data1$DEL$meta$TS + meta.data1$DUP$meta$TS
+  meta.data1$meta <- .combineDELDUP(meta.data1$DEL, meta.data1$DUP)
+  
+  Phi2 <- .combineBlocks(meta.data1$meta$meta, meta_grid)
+  
   ee_meta2 <- .eigen.FBM(Phi2)
-
-  exp.res2 <- .getPValues(q = meta.data2$meta$TS, lambda = ee_meta2, method = "meta")
-
-  expect_equal(Meta(study_SS2[[1L]],study_SS2[[2L]]), exp.res2)
-
+  
+  exp.res2 <- .getPValues(q = meta.data1$meta$meta$TS, lambda = ee_meta2, method = "meta")
+  
+  expect_equal(Meta(study1,study2), exp.res2)
+  
   expect_error(Meta(NULL))
 })
 

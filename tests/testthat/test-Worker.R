@@ -1,53 +1,10 @@
-test_that(".idDuplicates works", {
-  test_cnv <- data.frame("TYPE" = c(4,1,1))
-  test_all <- within(test_cnv, TYPE <- c(4, 4, 3))
-  test_none <- within(test_cnv, TYPE <- c(1, 1, 1))
-  test_one <- data.frame(TYPE = 3)
-
-  test_df <- data.frame(ID = 1:5)
-
-  expect_identical(.idDuplicates(test_cnv,2), c(TRUE,FALSE,FALSE))
-  expect_warning(.idDuplicates(test_all, 2), "all records code as duplication")
-  expect_warning(.idDuplicates(test_none, 2), "no records code as duplication")
-  expect_warning(
-    expect_identical(.idDuplicates(test_one,2), TRUE),
-    "all records code as duplication"
-  )
-
-  expect_error(.idDuplicates(NULL,2), "`cnvData` must be a data.frame")
-  expect_error(.idDuplicates(test_df,2), "`cnvData` must contain column `TYPE`")
-  expect_error(.idDuplicates(test_cnv,NULL), "`cutoff` must be numeric")
-
-})
-
-test_that(".idDeletions works", {
-  test_cnv <- data.frame("TYPE" = c(4,1,1))
-  test_all <- within(test_cnv, TYPE <- c(1, 0, 1))
-  test_none <- within(test_cnv, TYPE <- c(4, 3, 3))
-  test_one <- data.frame(TYPE = 1)
-
-  test_df <- data.frame(ID = 1:5)
-
-  expect_identical(.idDeletions(test_cnv,2), c(FALSE,TRUE,TRUE))
-  expect_warning(.idDeletions(test_all, 2), "all records code as deletion")
-  expect_warning(.idDeletions(test_none, 2), "no records code as deletion")
-  expect_warning(
-    expect_identical(.idDeletions(test_one,2), TRUE),
-    "all records code as deletion"
-  )
-
-  expect_error(.idDeletions(NULL,2), "`cnvData` must be a data.frame")
-  expect_error(.idDeletions(test_df,2), "`cnvData` must contain column `TYPE`")
-  expect_error(.idDeletions(test_cnv,NULL), "`cutoff` must be numeric")
-
-})
-
 test_that(".defineGrid works",{
   test_cnv <- data.frame("ID" = c("P1","P2","P3"),
                          "CHR" = c(1,1,1),
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
+  class(test_cnv) <-  c(class(test_cnv), "cnvData")
 
   test_cnv2 <- data.frame("TYPE" = c(4,1,1))
 
@@ -66,6 +23,7 @@ test_that(".matchGrid works",{
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
+  class(test_cnv) <-  c(class(test_cnv), "cnvData")
   grid <- .defineGrid(test_cnv)
 
   expected <- as.data.frame(list("ID" = test_cnv$ID,
@@ -165,7 +123,8 @@ test_that(".computeSS works", {
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
-
+  class(test_cnv) <-  c(class(test_cnv), "cnvData")
+  
   func.dup <- function(x, cutoff.dup) { as.integer(x > {cutoff.dup - 1e-8}) }
   func.del <- function(x, cutoff.del) { as.integer(x < {cutoff.del + 1e-8}) }
 
@@ -277,23 +236,25 @@ test_that(".computeSS works", {
 
 test_that(".computeXTXinvsqrt works", {
 
-  withr::with_seed(12345,
-                   {n <- 10
-                   covData <- data.frame(
-                     ID = paste0("P", 1:n),
-                     X1 = runif(n, 0, 1),
-                     X2 = sample(0:1, n, replace = TRUE)
-                   )
-
-                   z <- 0.5 * covData$X1 + 0.3 * covData$X2 + rnorm(n)
-
-                   # Simulate phenotype data
-                   Y <- data.frame(
-                     ID = paste0("P", 1:n),
-                     Yc = z,
-                     Yb = rbinom(n, size = 1, prob = 1 / (1 + exp(-z)))
-                   )})
-
+  withr::with_seed(
+    12345,
+    {
+      n <- 10
+      covData <- data.frame(
+        ID = paste0("P", 1:n),
+        X1 = runif(n, 0, 1),
+        X2 = sample(0:1, n, replace = TRUE)
+      )
+      
+      z <- 0.5 * covData$X1 + 0.3 * covData$X2 + rnorm(n)
+      
+      # Simulate phenotype data
+      Y <- data.frame(
+        ID = paste0("P", 1:n),
+        Yc = z,
+        Yb = rbinom(n, size = 1, prob = 1 / (1 + exp(-z)))
+      )})
+  
   formula_c <- Yc ~ X1 + X2
   formula_b <- Yb ~ X1 + X2
 
@@ -310,7 +271,7 @@ test_that(".computeXTXinvsqrt works", {
 
   expected_cont <- expm::sqrtm(solve(crossprod(X, X / phi.hat.cont)))
   expected_bin <- expm::sqrtm(solve(crossprod(X, X / phi.hat.bin)))
-
+  
   expect_equal(.computeXTXinvsqrt(X,phi.hat.cont), expected_cont)
   expect_equal(.computeXTXinvsqrt(X,phi.hat.bin), expected_bin)
 
@@ -363,9 +324,10 @@ test_that(".computeCov.Matrix works", {
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
+  class(test_cnv) <- c(class(test_cnv), "cnvData")
 
-  func.dup <- function(x, cutoff.dup) { as.integer(x > {cutoff.dup - 1e-8}) }
-  func.del <- function(x, cutoff.del) { as.integer(x < {cutoff.del + 1e-8}) }
+  func.dup <- function(x, cutoff.dup) { x > {cutoff.dup - 1e-8} }
+  func.del <- function(x, cutoff.del) { x < {cutoff.del + 1e-8} }
 
   grid <- .defineGrid(test_cnv)
   M <- .matchGrid(test_cnv, grid)
@@ -400,8 +362,8 @@ test_that(".computeCov.Matrix works", {
     use <- ids_cont == i
 
     # find A and B cases for this ID
-    cases_A <- which(grid.ind$ID == i & HA == 1L)
-    cases_B <- which(grid.ind$ID == i & HB == 1L)
+    cases_A <- which(grid.ind$ID == i & HA)
+    cases_B <- which(grid.ind$ID == i & HB)
 
     if (length(cases_A) > 0) {
       for (j in cases_A) {
@@ -451,16 +413,40 @@ test_that(".computeCov.Matrix works", {
     }
   }
 
-
   expected_cont <- list("HAHA" = as(HAHA, "symmetricMatrix"),
-                        "HAHB" = HAHB,
+                        "HAHB" = as(as(HAHB, "generalMatrix"), "CsparseMatrix"),
                         "HBHB" = as(HBHB, "symmetricMatrix"),
                         "HAX" = HAX %*% xtx_cont,
                         "HBX" = HBX %*% xtx_cont)
 
-  expect_equal(.computeCov.Matrix(y_cont, X, xtx_cont, phi.hat.cont, M, HA, HB),
-               expected_cont)
+  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)))
+  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)))
+  
+  actual <- .computeCov.Matrix(y_cont, X, xtx_cont, phi.hat.cont, M, HA, HB)
+  expected_cont1 <- list("HAHA" = expected_cont$HAHA[1:2,1:2],
+                        "HAHB" = as(as(expected_cont$HAHB[1:2,1:2], "generalMatrix"), "CsparseMatrix"),
+                        "HBHB" = expected_cont$HBHB[1:2,1:2],
+                        "HAX" = expected_cont$HAX[1:2,],
+                        "HBX" = expected_cont$HAX[1:2,])
+  
+  expect_equal(actual, expected_cont1)
+  
+  HA <- c(do.call(func.del, list(M$TYPE, 1.7)))
+  HB <- c(do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  
+  actual <- .computeCov.Matrix(y_cont, X, xtx_cont, phi.hat.cont, M, HA, HB)
+  expected_cont2 <- list("HAHA" = expected_cont$HAHA[3:4,3:4],
+                         "HAHB" = as(as(expected_cont$HAHB[3:4,3:4], "generalMatrix"), "diagonalMatrix"),
+                         "HBHB" = expected_cont$HBHB[3:4,3:4],
+                         "HAX" = expected_cont$HAX[3:4,],
+                         "HBX" = expected_cont$HBX[3:4,])
+  
+  expect_equal(actual, expected_cont2)
 
+  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)),
+          do.call(func.del, list(M$TYPE, 1.7)))
+  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)),
+          do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
   # reset for binary
   # dense matrices, initialized to zero
   HAX <- Matrix::Matrix(0.0, nrow = L2, ncol = p, sparse = TRUE)
@@ -526,13 +512,33 @@ test_that(".computeCov.Matrix works", {
   }
 
   expected_bin <- list("HAHA" = as(HAHA, "symmetricMatrix"),
-                        "HAHB" = Matrix(HAHB, sparse = TRUE),
+                        "HAHB" = as(as(HAHB, "generalMatrix"), "CsparseMatrix"),
                         "HBHB" = as(HBHB, "symmetricMatrix"),
                         "HAX" = HAX %*% xtx_bin,
                         "HBX" = HBX %*% xtx_bin)
 
-  expect_equal(.computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB),
-               expected_bin)
+  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)))
+  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)))
+  
+  actual <- .computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB)
+  expected_bin1 <- list("HAHA" = expected_bin$HAHA[1:2,1:2],
+                         "HAHB" = as(as(expected_bin$HAHB[1:2,1:2], "generalMatrix"), "CsparseMatrix"),
+                         "HBHB" = expected_bin$HBHB[1:2,1:2],
+                         "HAX" = expected_bin$HAX[1:2,],
+                         "HBX" = expected_bin$HAX[1:2,])
+  expect_equal(actual, expected_bin1)
+  
+  HA <- c(do.call(func.del, list(M$TYPE, 1.7)))
+  HB <- c(do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  
+  actual <- .computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB)
+  expected_bin2 <- list("HAHA" = expected_bin$HAHA[3:4,3:4],
+                         "HAHB" = as(as(expected_bin$HAHB[3:4,3:4], "generalMatrix"), "diagonalMatrix"),
+                         "HBHB" = expected_bin$HBHB[3:4,3:4],
+                         "HAX" = expected_bin$HAX[3:4,],
+                         "HBX" = expected_bin$HBX[3:4,])
+  
+  expect_equal(actual, expected_bin2)
 })
 
 
@@ -579,17 +585,16 @@ test_that(".computeCov.FBM works",{
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
+  class(test_cnv) <- c(class(test_cnv), "cnvData")
 
-  func.dup <- function(x, cutoff.dup) { as.integer(x > {cutoff.dup - 1e-8}) }
-  func.del <- function(x, cutoff.del) { as.integer(x < {cutoff.del + 1e-8}) }
+  func.dup <- function(x, cutoff.dup) { x > {cutoff.dup - 1e-8} }
+  func.del <- function(x, cutoff.del) { x < {cutoff.del + 1e-8} }
 
   grid <- .defineGrid(test_cnv)
   M <- .matchGrid(test_cnv, grid)
 
-  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)),
-          do.call(func.del, list(M$TYPE, 1.7)))
-  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)),
-          do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)))
+  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)))
 
   Matrix.cont <- .computeCov.Matrix(y_cont, X, xtx_cont, phi.hat.cont, M, HA, HB)
   Matrix.bin <- .computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB)
@@ -616,6 +621,7 @@ test_that(".computeCov.FBM works",{
   })
 
   save_dir2 <- file.path(tmp, "study2")
+  save_dir3 <- file.path(tmp, "study3")
   act.bin <- .computeCov.FBM(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB,
                              save_dir2)
 
@@ -640,6 +646,54 @@ test_that(".computeCov.FBM works",{
   # Clean up
   #unlink(save_dir1, recursive = TRUE, force = TRUE)
   #unlink(save_dir2, recursive = TRUE, force = TRUE)
+  
+  HA <- c(do.call(func.del, list(M$TYPE, 1.7)))
+  HB <- c(do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  
+  Matrix.cont <- .computeCov.Matrix(y_cont, X, xtx_cont, phi.hat.cont, M, HA, HB)
+  Matrix.bin <- .computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB)
+  mat.cont <- lapply(Matrix.cont, function(mat) {
+    mat_dense <- as.matrix(mat)
+    mat_dense
+  })
+  
+  mat.bin <- lapply(Matrix.bin, function(mat) {
+    mat_dense <- as.matrix(mat)
+    mat_dense
+  })
+  
+  #save_dir <- "~/Documents/PackageDev/MetaCONCUR/tests/testthat/tmp_share"
+  tmp <- withr::local_tempdir()
+  save_dir1 <- file.path(tmp, "study1")
+  
+  act.cont <- .computeCov.FBM(y_cont, X, xtx_cont, phi.hat.cont, M, HA, HB,
+                              save_dir1)
+  act.mat.cont <- lapply(act.cont, function(fbm) {
+    mat_dense <- as.matrix(fbm[, ])
+    mat_dense
+  })
+  
+  save_dir2 <- file.path(tmp, "study2")
+  act.bin <- .computeCov.FBM(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB,
+                             save_dir2)
+  
+  # 1. Return a list
+  expect_type(act.cont, "list")
+  # 2. Check all elements are FBM objects
+  expect_true(all(vapply(act.cont, inherits, logical(1), "FBM")))
+  # 1. Return a list
+  expect_type(act.bin, "list")
+  # 2. Check all elements are FBM objects
+  expect_true(all(vapply(act.bin, inherits, logical(1), "FBM")))
+  
+  act.mat.bin <- lapply(act.bin, function(fbm) {
+    mat_dense <- as.matrix(fbm[, ])
+    mat_dense
+  })
+  
+  expect_equal(act.mat.cont, mat.cont)
+  
+  expect_equal(act.mat.bin, mat.bin)
 })
 
 test_that(".computeCov works",{
@@ -686,17 +740,16 @@ test_that(".computeCov works",{
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
+  class(test_cnv) <- c(class(test_cnv), "cnvData")
 
-  func.dup <- function(x, cutoff.dup) { as.integer(x > {cutoff.dup - 1e-8}) }
-  func.del <- function(x, cutoff.del) { as.integer(x < {cutoff.del + 1e-8}) }
+  func.dup <- function(x, cutoff.dup) { x > {cutoff.dup - 1e-8} }
+  func.del <- function(x, cutoff.del) { x < {cutoff.del + 1e-8} }
 
   grid <- .defineGrid(test_cnv)
   M <- .matchGrid(test_cnv, grid)
 
-  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)),
-          do.call(func.del, list(M$TYPE, 1.7)))
-  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)),
-          do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)))
+  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)))
 
   #save_dir <- "~/Documents/PackageDev/MetaCONCUR/tests/testthat/tmp_share"
   tmp <- withr::local_tempdir()
@@ -705,6 +758,12 @@ test_that(".computeCov works",{
   expect_equal(.computeCov(y_bin, X, phi.hat.bin, M, HA, HB, FALSE, NULL),
                .computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB))
 
+  HA <- c(do.call(func.del, list(M$TYPE, 1.7)))
+  HB <- c(do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  
+  expect_equal(.computeCov(y_bin, X, phi.hat.bin, M, HA, HB, FALSE, NULL),
+               .computeCov.Matrix(y_bin, X, xtx_bin, phi.hat.bin, M, HA, HB))
+  
   act.cont <- .computeCov(y_cont, X, phi.hat.cont, M, HA, HB, TRUE, save_dir1)
   act.mat.cont <- lapply(act.cont, function(fbm) {
     mat_dense <- as.matrix(fbm[, ])
@@ -736,9 +795,9 @@ test_that(".computeCov works",{
   expect_error(.computeCov(y_bin, X, phi.hat.bin, NULL, HA, HB, FALSE, NULL),
                "`grid.ind` must be a data.frame")
   expect_error(.computeCov(y_bin, X, phi.hat.bin, M, NULL, HB, FALSE, NULL),
-               "`HA` must be an integer vector")
+               "`HA` must be an logical vector")
   expect_error(.computeCov(y_bin, X, phi.hat.bin, M, HA, NULL, FALSE, NULL),
-               "`HB` must be an integer vector")
+               "`HB` must be an logical vector")
   expect_error(.computeCov(y_bin, X, phi.hat.bin, M, HA, HB, NULL, NULL),
                "`use.big.memory` must be a logical")
 
@@ -750,23 +809,25 @@ test_that(".scoreProcedure works",{
   library(Matrix)
   library(bigstatsr)
 
-  withr::with_seed(12345,
-                   {n <- 10
-                   covData <- data.frame(
-                     ID = paste0("P", 1:n),
-                     X1 = runif(n, 0, 1),
-                     X2 = sample(0:1, n, replace = TRUE)
-                   )
-
-                   z <- 0.5 * covData$X1 + 0.3 * covData$X2 + rnorm(n)
-
-                   # Simulate phenotype data
-                   Y <- data.frame(
-                     ID = paste0("P", 1:n),
-                     Yc = z,
-                     Yb = rbinom(n, size = 1, prob = 1 / (1 + exp(-z)))
-                   )})
-
+  withr::with_seed(
+    12345,
+    {
+      n <- 10
+      covData <- data.frame(
+        ID = paste0("P", 1:n),
+        X1 = runif(n, 0, 1),
+        X2 = sample(0:1, n, replace = TRUE)
+      )
+      
+      z <- 0.5 * covData$X1 + 0.3 * covData$X2 + rnorm(n)
+      
+      # Simulate phenotype data
+      Y <- data.frame(
+        ID = paste0("P", 1:n),
+        Yc = z,
+        Yb = rbinom(n, size = 1, prob = 1 / (1 + exp(-z)))
+      )})
+  
   formula_c <- Yc ~ X1 + X2
   formula_b <- Yb ~ X1 + X2
 
@@ -789,42 +850,54 @@ test_that(".scoreProcedure works",{
                          "BP1" = c(150,200,200),
                          "BP2" = c(200,300,300),
                          "TYPE" = c(4L,1L,1L))
+  class(test_cnv) <- c(class(test_cnv), "cnvData")
 
   #save_dir <- "~/Documents/PackageDev/MetaCONCUR/tests/testthat/tmp_share"
 
-  func.dup <- function(x, cutoff.dup) { as.integer(x > {cutoff.dup - 1e-8}) }
-  func.del <- function(x, cutoff.del) { as.integer(x < {cutoff.del + 1e-8}) }
+  func.dup <- function(x, cutoff.dup) { x > {cutoff.dup - 1e-8} }
+  func.del <- function(x, cutoff.del) { x < {cutoff.del + 1e-8} }
 
   grid <- .defineGrid(test_cnv)
   M <- .matchGrid(test_cnv, grid)
 
-  HA <- c(do.call(func.dup, list(M$TYPE, 2.3)),
-          do.call(func.del, list(M$TYPE, 1.7)))
-  HB <- c(do.call(func.dup, list(M$TYPE, 2.3 + 1.0)),
-          do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  HA <- do.call(func.dup, list(M$TYPE, 2.3))
+  HB <- do.call(func.dup, list(M$TYPE, 2.3 + 1.0))
 
   res.cont <- list(grid = grid,
-                       SSA = c(.computeSS(y_cont, M, func.dup, 2.3, px, "cont"),
-                               .computeSS(y_cont, M, func.del, 1.7, px, "cont")),
-                       SSB = c(.computeSS(y_cont, M, func.dup, 2.3 + 1.0, px, "cont"),
-                               .computeSS(y_cont, M, func.del, 1.7 - 1.0, px, "cont")))
-
+                   SSA = .computeSS(y_cont, M, func.dup, 2.3, px, "cont"),
+                   SSB = .computeSS(y_cont, M, func.dup, 2.3 + 1.0, px, "cont"))
+  
   exp.cont <- c(res.cont,
                 .computeCov(y_cont, X, phi.hat.cont, M, HA, HB, FALSE, NULL))
 
-  expect_equal(.scoreProcedure(test_cnv, 2.3, 1.7,y_cont, X, "cont", FALSE, NULL),
+  expect_equal(.scoreProcedure(test_cnv, 2.3, 1.7, y_cont, X, "cont", FALSE, NULL)$DUP,
+               exp.cont)
+  
+  HA <- do.call(func.del, list(M$TYPE, 1.7))
+  HB <- do.call(func.del, list(M$TYPE, 1.7 - 1.0))
+  
+  res.cont <- list(grid = grid,
+                   SSA = .computeSS(y_cont, M, func.del, 1.7, px, "cont"),
+                   SSB = .computeSS(y_cont, M, func.del, 1.7 - 1.0, px, "cont"))
+  
+  exp.cont <- c(res.cont,
+                .computeCov(y_cont, X, phi.hat.cont, M, HA, HB, FALSE, NULL))
+  
+  expect_equal(.scoreProcedure(test_cnv, 2.3, 1.7, y_cont, X, "cont", FALSE, NULL)$DEL,
                exp.cont)
 
+  HA <- do.call(func.dup, list(M$TYPE, 2.3))
+  HB <- do.call(func.dup, list(M$TYPE, 2.3 + 1.0))
+  
   res.bin <- list(grid = grid,
-                  SSA = c(.computeSS(y_bin, M, func.dup, 2.3, px, "bin"),
-                          .computeSS(y_bin, M, func.del, 1.7, px, "bin")),
-                  SSB = c(.computeSS(y_bin, M, func.dup, 2.3 + 1.0, px, "bin"),
-                          .computeSS(y_bin, M, func.del, 1.7 - 1.0, px, "bin")))
+                  SSA = .computeSS(y_bin, M, func.dup, 2.3, px, "bin"),
+                  SSB = .computeSS(y_bin, M, func.dup, 2.3 + 1.0, px, "bin"))
 
   tmp <- withr::local_tempdir()
   save_dir1 <- file.path(tmp, "study1")
   save_dir2 <- file.path(tmp, "study2")
-
+  save_dir3 <- file.path(tmp, "study3")
+  
   exp.bin <- .computeCov(y_bin, X, phi.hat.bin, M, HA, HB, TRUE, save_dir1)
 
   exp.mat.bin <- lapply(exp.bin, function(fbm) {
@@ -834,18 +907,65 @@ test_that(".scoreProcedure works",{
 
   exp.res.bin <- c(res.bin, exp.mat.bin)
 
-  act.bin <- .scoreProcedure(test_cnv, 2.3, 1.7, y_bin, X, "bin", TRUE, save_dir2)
+  act.bin <- .scoreProcedure(test_cnv, 2.3, 1.7, y_bin, X, "bin", TRUE, save_dir2, save_dir3)
 
-  act.mat.bin <-c(
-    act.bin[1:3],
-    lapply(act.bin[-(1:3)], function(fbm) {
+  act.mat.bin_DUP <-c(
+    act.bin$DUP[1:3],
+    lapply(act.bin$DUP[-(1:3)], function(fbm) {
+      mat_dense <- as.matrix(fbm[, ])
+      mat_dense
+    })
+  )
+  
+  act.mat.bin_DEL <-c(
+    act.bin$DEL[1:3],
+    lapply(act.bin$DEL[-(1:3)], function(fbm) {
       mat_dense <- as.matrix(fbm[, ])
       mat_dense
     })
   )
 
-  expect_equal(act.mat.bin, exp.res.bin)
+  expect_equal(act.mat.bin_DUP, exp.res.bin)
 
+  HA <- c(do.call(func.del, list(M$TYPE, 1.7)))
+  HB <- c(do.call(func.del, list(M$TYPE, 1.7 - 1.0)))
+  res.bin <- list(grid = grid,
+                  SSA = c(.computeSS(y_bin, M, func.del, 1.7, px, "bin")),
+                  SSB = c(.computeSS(y_bin, M, func.del, 1.7 - 1.0, px, "bin")))
+  
+  tmp <- withr::local_tempdir()
+  save_dir1 <- file.path(tmp, "study1")
+  save_dir2 <- file.path(tmp, "study2")
+  save_dir3 <- file.path(tmp, "study3")
+  
+  exp.bin <- .computeCov(y_bin, X, phi.hat.bin, M, HA, HB, TRUE, save_dir1)
+
+  exp.mat.bin <- lapply(exp.bin, function(fbm) {
+    mat_dense <- as.matrix(fbm[, ])
+    mat_dense
+  })
+  
+  exp.res.bin <- c(res.bin, exp.mat.bin)
+  
+  act.bin <- .scoreProcedure(test_cnv, 2.3, 1.7, y_bin, X, "bin", TRUE, save_dir2, save_dir3)
+  
+  act.mat.bin_DUP <-c(
+    act.bin$DUP[1:3],
+    lapply(act.bin$DUP[-(1:3)], function(fbm) {
+      mat_dense <- as.matrix(fbm[, ])
+      mat_dense
+    })
+  )
+  
+  act.mat.bin_DEL <-c(
+    act.bin$DEL[1:3],
+    lapply(act.bin$DEL[-(1:3)], function(fbm) {
+      mat_dense <- as.matrix(fbm[, ])
+      mat_dense
+    })
+  )
+  
+  expect_equal(act.mat.bin_DEL, exp.res.bin)
   #unlink(save_dir1, recursive = TRUE, force = TRUE)
   #unlink(save_dir2, recursive = TRUE, force = TRUE)
 
@@ -855,9 +975,9 @@ test_that(".scoreProcedure works",{
   expect_error(.scoreProcedure(test_cnv, 2.3, 1.7, y_bin, NULL, "bin", FALSE, NULL),
                "`X` must be a matrix")
   expect_error(.scoreProcedure(test_cnv, NULL, 1.7, y_bin, X, "bin", FALSE, NULL),
-              "`cutoff.dup` must be a scalar")
+              "`cutoff` must be a scalar")
   expect_error(.scoreProcedure(test_cnv, 2.3, NULL, y_bin, X, "bin", FALSE, NULL),
-              "`cutoff.del` must be a scalar")
+              "`cutoff` must be a scalar")
   expect_error(.scoreProcedure(test_cnv, 2.3, 1.7, y_bin, X, "bin", NULL, NULL),
                "`use.big.memory` must be a logical")
 })
@@ -871,13 +991,13 @@ test_that(".computeTS works",{
     for (i in 2:11) {
       grid[i] <- grid[i - 1] + sample(25:50, 1)
     }
-    SSA <- runif(20)})
+    SSA <- runif(10)})
 
   exp.TS <- sum(SSA * diff(grid) * SSA)
 
   expect_equal(.computeTS(SSA, grid), exp.TS)
   expect_error(.computeTS(NULL, grid),
-               "`score` must be a numeric vector with double length of `grid`")
+               "`score` must be a numeric vector with length of `grid`")
   expect_error(.computeTS(SSA, NULL))
 })
 
@@ -981,6 +1101,7 @@ test_that("CONCUR_worker works",{
                          "BP1" = c(150,400,200,200,450),
                          "BP2" = c(200,500,300,300,500),
                          "TYPE" = c(4L,3L,1L,1L,3L))
+  class(test_cnv) <- c(class(test_cnv), "cnvData")
 
   #save_dir <- "~/Documents/PackageDev/MetaCONCUR/tests/testthat/tmp_share"
 

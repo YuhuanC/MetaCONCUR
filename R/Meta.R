@@ -15,24 +15,20 @@
 .computeTSMeta <- function(meta.data, meta.grid) {
 
   meta_obj <- which(names(meta.data) == "meta")
-  n_studies <- length(meta.data)
-  idx <- c(1L:n_studies)[-meta_obj]
+  meta_hold <- meta.data$meta
+  meta.data$meta <- NULL
+  
+  sum_SSA <- lapply(meta.data, "[[", "SSA") |> do.call(what = cbind)
+  sum_SSA <- rowSums(sum_SSA)
 
-  sum_SSA <- meta.data[[idx[1L]]]$SSA
-  sum_SSB <- meta.data[[idx[1L]]]$SSB
-  meta.data[[idx[1L]]]$SSA <- NULL
-  meta.data[[idx[1L]]]$SSB <- NULL
+  sum_SSB <- lapply(meta.data, "[[", "SSB") |> do.call(what = cbind)
+  sum_SSB <- rowSums(sum_SSB)
+  
+  meta.data <- lapply(meta.data, function(x) {x$SSA <- NULL; x$SSB <- NULL; x})
+  
+  meta_hold$TS <- .computeTS(sum_SSA, meta.grid) + .computeTS(sum_SSB, meta.grid)
 
-  for (i in idx[-1L]) {
-    sum_SSA <- sum_SSA + meta.data[[i]]$SSA
-    sum_SSB <- sum_SSB + meta.data[[i]]$SSB
-    meta.data[[i]]$SSA <- NULL
-    meta.data[[i]]$SSB <- NULL
-  }
-
-  TS_meta <- .computeTS(sum_SSA, meta.grid) + .computeTS(sum_SSB, meta.grid)
-
-  meta.data$meta$TS <- TS_meta
+  meta.data$meta <- meta_hold
   meta.data
 
 }
@@ -260,38 +256,51 @@
 Meta <- function(...) {
 
   meta.data <- list(...)
-
   stopifnot(
     "`meta.data` must be a list of lists of summary statistics in Worker-Output form" =
-      is.list(meta.data) &&
+      is.list(meta.data) && 
       all(
         vapply(meta.data, function(x) {
-          is.list(x) &&
-            all(c("grid", "SSA", "SSB", "HAHA", "HAHB", "HBHB", "HAX", "HBX") %in% names(x))
+          all(c("DUP", "DEL") %in% names(x)) &&
+          is.list(x$DUP) &&
+            all(c("grid", "SSA", "SSB", "HAHA", "HAHB", "HBHB", "HAX", "HBX") %in% names(x$DUP)) &&
+            is.list(x$DEL) &&
+            all(c("grid", "SSA", "SSB", "HAHA", "HAHB", "HBHB", "HAX", "HBX") %in% names(x$DEL))
         }, logical(1))
       ),
     "`meta.data` must contain summary statistics of more than one study" =
       length(meta.data) > 1L
   )
+  
+  # split the data by DEL/DUP
+  meta <- list()
+  meta$DEL <- lapply(meta.data, "[[", "DEL")
+  meta$DUP <- lapply(meta.data, "[[", "DUP")
+  rm(meta.data)
 
-  meta_grid <- lapply(meta.data, "[[", "grid") |> unlist() |> unique() |> sort()
+  meta_grid <- lapply(meta$DEL, "[[", "grid") |> unlist() |> unique() |> sort()
+  
+  for (i in 1L:2L) {
 
-  meta.data <- lapply(meta.data, .alignStudyToMeta, meta.grid = meta_grid)
+    meta[[i]] <- lapply(meta[[i]], .alignStudyToMeta, meta.grid = meta_grid)
 
-  meta.data$meta <- list()
+    meta[[i]]$meta <- list()
 
-  meta.data <- .computeTSMeta(meta.data, meta_grid)
-  meta.data <- .sumHAHA(meta.data)
-  meta.data <- .sumHAHB(meta.data)
-  meta.data <- .sumHBHB(meta.data)
-  meta.data <- .rmStudies(meta.data)
-
-  Phi <- .combineBlocks(meta.data$meta, meta_grid)
+    meta[[i]] <- .computeTSMeta(meta[[i]], meta_grid)
+    meta[[i]] <- .sumHAHA(meta[[i]])
+    meta[[i]] <- .sumHAHB(meta[[i]])
+    meta[[i]] <- .sumHBHB(meta[[i]])
+    meta[[i]] <- .rmStudies(meta[[i]])
+  }
+  TSmeta <- meta$DEL$meta$TS + meta$DUP$meta$TS
+  meta <- .combineDELDUP(meta$DEL, meta$DUP)
+  
+  Phi <- .combineBlocks(meta$meta, meta_grid)
 
   ee_meta <- .eigen(Phi)
   rm("Phi")
 
-  .getPValues(q = meta.data$meta$TS, lambda = ee_meta, method = "meta")
+  .getPValues(q = TSmeta, lambda = ee_meta, method = "meta")
 }
 
 #' Load summary statistics (FBM + RDS or all-in-RDS)

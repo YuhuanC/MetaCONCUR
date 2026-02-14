@@ -208,7 +208,8 @@
 
   meta_obj <- which(names(meta.data) == "meta")
   n_studies <- length(meta.data)
-  idx <- c(1L:n_studies)[-meta_obj]
+  idx <- 1L:n_studies
+  if (length(meta_obj) != 0) idx <- idx[-meta_obj]
   if (inherits(meta.data[[idx[1L]]]$HAHA, "FBM")) {
     .sumHxHx.FBM(meta.data, "A")
   } else {
